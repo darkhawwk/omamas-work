@@ -61,6 +61,8 @@ brew "luarocks"
 brew "mas"
 # TCP port scanner, scans entire Internet in under 5 minutes
 brew "masscan"
+# Polyglot runtime manager (asdf rust clone)
+brew "mise"
 # Deep clean and optimize your Mac
 brew "mole"
 # 'traceroute' and 'ping' in a single tool
@@ -107,6 +109,10 @@ brew "zmap"
 brew "zoxide"
 # UNIX shell (command interpreter)
 brew "zsh"
+# Fish-like fast/unobtrusive autosuggestions for zsh
+brew "zsh-autosuggestions"
+# Feature-rich syntax highlighting for Zsh
+brew "zsh-fast-syntax-highlighting"
 # Desktop password and login vault
 cask "bitwarden"
 # Monitors common persistence locations
