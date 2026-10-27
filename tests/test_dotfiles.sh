@@ -74,6 +74,20 @@ check "exits non-zero" rc_is 1
 check "explains the refusal" has_output "parent resolves inside Omamas"
 check "creates no self-referencing link in configs/" test ! -L "$CFG/home/.config/app/conf"
 
+echo "dotfiles: same folder, different spelling (case-insensitive disk)"
+new_sandbox
+echo zsh >"$CFG/home/.zshrc"
+UPPER_CFG="$(dirname "$CFG")/CONFIGS"
+if [[ -d $UPPER_CFG ]]; then # skip on a case-sensitive disk
+  ln -s "$UPPER_CFG/home/.zshrc" "$FAKE_HOME/.zshrc" # as if setup ran from a differently-cased path
+  omamas $M
+  check "a link to the same file counts as converged" has_output "0 changed, 1 unchanged"
+  check "nothing gets backed up" test ! -d "$(backups_dir)"
+  rm "$FAKE_HOME/.zshrc"
+  EXTRA_ENV="OMAMAS_CONFIG_DIR=$UPPER_CFG" omamas $M
+  check "new links use the on-disk spelling" test "$(readlink "$FAKE_HOME/.zshrc")" = "$CFG/home/.zshrc"
+fi
+
 echo "dotfiles: folder we can't write to"
 new_sandbox
 mkdir -p "$CFG/home/.config/tool" "$FAKE_HOME/.config/tool"

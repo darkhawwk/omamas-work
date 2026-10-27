@@ -15,8 +15,6 @@ source "$(dirname "${BASH_SOURCE[0]}")/utils.sh"
 
 MANIFEST="$OMAMAS_CONFIG_DIR/macos/default-apps.conf"
 
-lower() { tr '[:upper:]' '[:lower:]' <<<"$1"; }
-
 # Bundle id currently handling TARGET (empty if none).
 handler_for() { duti -d "$1" 2>/dev/null | head -n1 || true; }
 

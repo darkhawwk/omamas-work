@@ -67,6 +67,7 @@ omamas/
 ├── configs/                   State · what should exist. No logic.
 │   ├── Brewfile                 formulae, casks, taps, mas apps
 │   ├── claude-backup.conf       where Claude backups go; which folder to check for repos
+│   ├── drift-check.conf         when the weekly drift check runs
 │   ├── directories.conf         directories + modes
 │   ├── home/                    mirror of $HOME; every file is symlinked into place
 │   ├── fonts/                   .ttf/.otf/.ttc copied to ~/Library/Fonts
@@ -98,7 +99,9 @@ omamas/
 │   ├── 62-dock.sh               │
 │   ├── 64-default-apps.sh       │
 │   ├── 66-login-items.sh        │
-│   └── 68-security.sh           ┘
+│   ├── 68-security.sh           │
+│   ├── 70-drift-check.sh        ┘
+│   └── drift-check.sh           weekly "still in sync?" report (run by the LaunchAgent)
 ├── assets/logo.png            Project logo
 ├── tests/                     Sandboxed tests (fake $HOME; never touch the real machine)
 └── .github/workflows/ci.yml   Lint + tests, then a real bootstrap on an ephemeral macOS VM
@@ -271,6 +274,23 @@ Anthropic doesn't document a migration path, so treat the desktop app's session 
 | `64-default-apps` | Sets handlers with `duti` (Brave for web links and HTML, Obsidian for Markdown). | Reads each one first. macOS asks you to confirm a new default browser; until you do, it's a follow-up, not a success. |
 | `66-login-items` | Adds the apps in `login-items.conf` to Login Items through System Events. | Never removes any. If access to System Events is declined or the prompt isn't answered within 20 seconds, it leaves a follow-up instead of waiting. |
 | `68-security` | Sets the application firewall and stealth mode; reports FileVault. | With the firewall on, macOS asks once whether an unsigned program (a dev server, say) may accept incoming connections. FileVault is never turned on automatically: that needs you and produces a recovery key. |
+
+## Weekly drift check
+
+Machines drift: you install an app without adding it to the Brewfile, flip a setting in System Settings, rearrange the Dock, or an app rewrites a linked config. `70-drift-check.sh` installs a LaunchAgent (`~/Library/LaunchAgents/com.omamas.drift-check.plist`) that runs `scripts/drift-check.sh` on the schedule in `configs/drift-check.conf` (Mondays at 10:00).
+
+The check runs `./setup.sh --dry-run`, so it never changes anything, and reports:
+- modules with pending changes (something on the Mac no longer matches `configs/`)
+- apps installed with Homebrew but missing from the Brewfile
+- modules that failed
+- uncommitted or unpushed changes in the Omamas repo (an app editing a linked dotfile shows up here)
+
+**When it notifies you:** only if something differs. The notification comes from Script Editor, so allow notifications for it the first time. Every run writes `~/.local/state/omamas/drift/latest.txt`.
+**What's left out:** login items, because their check needs a permission prompt a background job can't answer (`skip` in the config).
+**On demand:** `scripts/drift-check.sh`, or `--no-notify` to just print it.
+**Turning it off:** delete `configs/drift-check.conf`; the next `./setup.sh` removes the agent.
+
+**Fixing drift:** either update `configs/` to match what you changed (e.g. add the app to the Brewfile, or re-capture with `./capture.sh`), or run `./setup.sh` to put the Mac back the way the configs say.
 
 ## Computer name
 

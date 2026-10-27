@@ -32,7 +32,9 @@ link_file() {
     return 1
   fi
 
-  if [[ -L $dst && $(readlink "$dst") == "$src" ]]; then
+  # -ef: same file on disk, however the link's path is spelled (see
+  # canonical_path in utils.sh), so ~/work/... and ~/Work/... both count.
+  if [[ -L $dst && ( $(readlink "$dst") == "$src" || $dst -ef $src ) ]]; then
     log_skip "$(tildify "$dst")"
     return 0
   fi
@@ -42,7 +44,7 @@ link_file() {
   # link of ~/.config), creating DST would silently write into configs/.
   anchor=$(dirname "$dst")
   while [[ ! -d $anchor ]]; do anchor=$(dirname "$anchor"); done
-  anchor_real=$(cd -P "$anchor" && pwd) || {
+  anchor_real=$(canonical_path "$anchor") || {
     log_error "Cannot resolve parent of $dst"
     return 1
   }
@@ -92,7 +94,8 @@ prune_stale_links() {
     if cut -f1 "$desired" | grep -Fxq -- "$dst"; then
       continue
     fi
-    if [[ -L $dst && $(readlink "$dst") == "$src" && ! -e $src ]]; then
+    # Case-insensitive: the recorded and current spellings may differ.
+    if [[ -L $dst && ! -e $src && $(lower "$(readlink "$dst")") == "$(lower "$src")" ]]; then
       if is_dry_run; then
         log_dry "remove stale link $(tildify "$dst")"
       elif rm -- "$dst"; then

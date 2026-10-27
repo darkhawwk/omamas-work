@@ -19,10 +19,14 @@ __OMAMAS_UTILS_LOADED=1
 set -Eeuo pipefail
 
 # ─── Paths ────────────────────────────────────────────────────────────────────
-# Physical paths (cd -P) so symlink targets compare reliably later on.
-OMAMAS_SCRIPTS="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-OMAMAS_ROOT="$(cd -P "$OMAMAS_SCRIPTS/.." && pwd)"
-OMAMAS_CONFIG_DIR="$(cd -P "${OMAMAS_CONFIG_DIR:-$OMAMAS_ROOT/configs}" && pwd)"
+# Canonical paths: symlinks resolved *and* the on-disk spelling. macOS disks
+# are case-insensitive, so ~/work and ~/Work are one folder; without this,
+# links written from one spelling look wrong from the other. realpath(1)
+# returns the stored case; cd -P is the fallback.
+canonical_path() { /bin/realpath "$1" 2>/dev/null || (cd -P "$1" && pwd); }
+OMAMAS_SCRIPTS="$(canonical_path "$(dirname "${BASH_SOURCE[0]}")")"
+OMAMAS_ROOT="$(canonical_path "$OMAMAS_SCRIPTS/..")"
+OMAMAS_CONFIG_DIR="$(canonical_path "${OMAMAS_CONFIG_DIR:-$OMAMAS_ROOT/configs}")"
 OMAMAS_STATE_DIR="${OMAMAS_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/omamas}"
 
 # One RUN_ID per orchestrated run, shared by every module so that all backups
@@ -136,6 +140,8 @@ run() {
 }
 
 has_cmd() { command -v "$1" >/dev/null 2>&1; }
+
+lower() { tr '[:upper:]' '[:lower:]' <<<"$1"; }
 
 # Run a command, killing it and everything it started after SECS seconds
 # (exit 142). For anything that can block on a macOS permission prompt nobody
