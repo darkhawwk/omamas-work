@@ -137,6 +137,25 @@ run() {
 
 has_cmd() { command -v "$1" >/dev/null 2>&1; }
 
+# Run a command, killing it and everything it started after SECS seconds
+# (exit 142). For anything that can block on a macOS permission prompt nobody
+# is there to answer. The command gets its own process group so a child left
+# holding stdout can't keep the caller waiting.
+#   run_with_timeout 20 osascript -e '...'
+run_with_timeout() {
+  local secs=$1
+  shift
+  /usr/bin/perl -e '
+    my $secs = shift;
+    my $pid = fork // die "fork: $!";
+    if ($pid == 0) { setpgrp(0, 0); exec @ARGV or die "exec: $!" }
+    $SIG{ALRM} = sub { kill "TERM", -$pid, $pid; sleep 1; kill "KILL", -$pid, $pid; exit 142 };
+    alarm $secs;
+    waitpid $pid, 0;
+    exit($? & 127 ? 128 + ($? & 127) : $? >> 8);
+  ' "$secs" "$@"
+}
+
 require_cmd() {
   has_cmd "$1" || die "Required command '$1' not found.${2:+ $2}"
 }

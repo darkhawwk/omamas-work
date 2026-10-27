@@ -35,6 +35,8 @@ Nothing has to be installed first: `install.sh` brings the Xcode Command Line To
 - [ ] **Your password, once.** From then on Touch ID works.
 - [ ] **Command Line Tools dialog.** Only appears if the silent install isn't available; click Install and the script waits.
 - [ ] **"Terminal wants to control System Settings"**: allow it. The preferences step closes System Settings so it can't overwrite new values.
+- [ ] **"Terminal wants to control System Events"**: allow it, so your login items can be added.
+- [ ] **"Do you want to change your default web browser?"**: choose Brave.
 - [ ] **Sign in to 1Password when it opens.** It's installed right after Homebrew and opened for you; the run doesn't wait, so sign in while packages install.
 - [ ] **Cask installer prompts.** Some apps ask for a password or permission mid-install.
 
@@ -71,7 +73,11 @@ omamas/
 │   ├── macos/computer-name.conf this Mac's name
 │   ├── repos.conf               git repos to clone under ~/Work
 │   ├── secrets/                 templates with op:// references, rendered into $HOME
-│   └── macos/defaults.conf      `defaults` preferences
+│   ├── macos/defaults.conf      `defaults` preferences
+│   ├── macos/dock.conf          Dock apps, in order
+│   ├── macos/default-apps.conf  which app opens which links and documents
+│   ├── macos/login-items.conf   apps that open at login
+│   └── macos/security.conf      firewall, stealth mode, FileVault check
 ├── scripts/                   Imperative · how to get there
 │   ├── utils.sh                 shared runtime (sourced): logging, traps, run, sudo, backups
 │   ├── symlink.sh               shared library (sourced): link_file, prune_stale_links
@@ -88,7 +94,11 @@ omamas/
 │   ├── 47-runtimes.sh           │
 │   ├── 48-secrets.sh            │
 │   ├── 50-fonts.sh              │
-│   └── 60-macos-defaults.sh     ┘
+│   ├── 60-macos-defaults.sh     │
+│   ├── 62-dock.sh               │
+│   ├── 64-default-apps.sh       │
+│   ├── 66-login-items.sh        │
+│   └── 68-security.sh           ┘
 ├── assets/logo.png            Project logo
 ├── tests/                     Sandboxed tests (fake $HOME; never touch the real machine)
 └── .github/workflows/ci.yml   Lint + tests, then a real bootstrap on an ephemeral macOS VM
@@ -150,6 +160,10 @@ cp -a ~/.local/state/omamas/backups/<run-id>/. ~/
 | `configs/repos.conf` | `<host>/<owner>/<repo>`, cloned to `~/Work/<host>/<owner>/<repo>` | `45-repos` |
 | `configs/fonts/*` | font files | `50-fonts` |
 | `configs/macos/defaults.conf` | `<domain> <key> <-bool\|-int\|-float\|-string> <value…>` | `60-macos-defaults` |
+| `configs/macos/dock.conf` | one app path per line, in Dock order | `62-dock` |
+| `configs/macos/default-apps.conf` | `<bundle-id> <url-scheme>` or `<bundle-id> <type-id> <role>` | `64-default-apps` |
+| `configs/macos/login-items.conf` | `<app path> [hidden]` | `66-login-items` |
+| `configs/macos/security.conf` | `firewall on\|off`, `stealth on\|off`, `filevault check` | `68-security` |
 
 In the `.conf` files, lines starting with `#` and blank lines are ignored, and a leading `~` expands to `$HOME`. Every manifest ships with its examples commented out, so a fresh clone changes nothing until you declare something.
 
@@ -248,6 +262,15 @@ migrate/claude-restore.sh            # newest image, or pass one: claude-restore
 - **Getting sessions back:** clone your repos to the same paths they had (e.g. `~/Work/github.com/...`) for `claude --resume` and the Code tab to find their sessions.
 
 Anthropic doesn't document a migration path, so treat the desktop app's session list as best effort; `~/.claude` is plain files and restores reliably.
+
+## Dock, default apps, login items, security
+
+| Module | What it does | Notes |
+|---|---|---|
+| `62-dock` | The Dock holds exactly the apps in `dock.conf`, in order, and no folders or stacks. | Yours is empty, so a new Mac's default apps and Downloads stack are removed. Delete `dock.conf` to leave the Dock alone. Rebuilds and restarts the Dock only when it differs. |
+| `64-default-apps` | Sets handlers with `duti` (Brave for web links and HTML, Obsidian for Markdown). | Reads each one first. macOS asks you to confirm a new default browser; until you do, it's a follow-up, not a success. |
+| `66-login-items` | Adds the apps in `login-items.conf` to Login Items through System Events. | Never removes any. If access to System Events is declined or the prompt isn't answered within 20 seconds, it leaves a follow-up instead of waiting. |
+| `68-security` | Sets the application firewall and stealth mode; reports FileVault. | With the firewall on, macOS asks once whether an unsigned program (a dev server, say) may accept incoming connections. FileVault is never turned on automatically: that needs you and produces a recovery key. |
 
 ## Computer name
 

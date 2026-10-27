@@ -15,8 +15,12 @@ brew "bat"
 brew "btop"
 # GNU File, Shell, and Text utilities
 brew "coreutils"
+# Tool for managing dock items (used by 62-dock.sh)
+brew "dockutil"
 # More intuitive version of du in rust
 brew "dust"
+# Select default apps for documents and URL schemes on macOS (used by 64-default-apps.sh)
+brew "duti"
 # Perl lib for reading and writing EXIF metadata
 brew "exiftool"
 # Modern, maintained replacement for ls
