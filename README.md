@@ -12,6 +12,43 @@ curl -fsSL https://raw.githubusercontent.com/thebenwalther/omamas/main/install.s
 
 Pass flags through with `bash -s --`, e.g. `... | bash -s -- --dry-run`.
 
+## New Mac checklist
+
+Nothing has to be installed first: `install.sh` brings the Xcode Command Line Tools (and git), and the modules install Rosetta 2, Homebrew and everything else.
+
+### Before you run it
+
+- [ ] **macOS 14 (Sonoma) or newer**, set up through Setup Assistant with an **admin** account. Run Omamas as that user, not with `sudo`.
+- [ ] **Connected to the internet.**
+- [ ] **Touch ID fingerprint enrolled** (System Settings → Touch ID & Password), so `sudo` can use it after the first prompt. Without one, sudo falls back to your password.
+- [ ] **Signed into the App Store** with the Apple ID that owns your `mas` apps. Nothing can sign in for you; without it those apps fail, and the rest of the run carries on.
+- [ ] **Decide where the repo lives.** Dotfile symlinks point into the checkout, which defaults to `~/.local/share/omamas`. To mirror this Mac, set `OMAMAS_DIR`:
+  ```bash
+  curl -fsSL https://raw.githubusercontent.com/thebenwalther/omamas/main/install.sh | OMAMAS_DIR=~/Work/github.com/thebenwalther/omamas bash
+  ```
+- [ ] **Plugged in**, if it's a laptop. `caffeinate` keeps it awake, but downloading every cask takes a while.
+
+### While it runs: stay nearby for the first few minutes
+
+- [ ] **Your password, once.** From then on Touch ID works.
+- [ ] **Command Line Tools dialog.** Only appears if the silent install isn't available; click Install and the script waits.
+- [ ] **"Terminal wants to control System Settings"**: allow it. The preferences step closes System Settings so it can't overwrite new values.
+- [ ] **Cask installer prompts.** Some apps ask for a password or permission mid-install.
+
+After that the run is unattended. The summary lists failed modules, follow-ups (e.g. log out for global preferences), the log file and the backup folder. Re-running is always safe and only retries what isn't done yet.
+
+### After it finishes
+
+- [ ] **Open a new terminal**, so the new shell config loads.
+- [ ] **Log out and back in** if the summary asks; some global preferences only apply then.
+- [ ] **Sign into 1Password** and turn on its SSH agent. Your SSH keys and git-over-SSH depend on it.
+- [ ] **Restore secrets** that aren't in the repo: anything in `~/.ssh`, and tokens for `~/.zshrc.local`.
+- [ ] **Sign into apps** and enter licenses: Dropbox, Slack, Zoom, Notion and the rest.
+- [ ] **Grant privacy permissions** as apps ask: Accessibility, Screen Recording, Full Disk Access.
+- [ ] **Install language runtimes** with `mise install`. mise is installed, but runtimes are not yet a module.
+- [ ] **Copy Claude Code history** (`~/.claude/projects`) privately from the old Mac if you want to resume conversations. It only matches up if your username and folder paths are the same.
+- [ ] **Confirm it converged:** `./setup.sh` again should report `0 changed` for every module.
+
 ## Layout
 
 ```
@@ -30,6 +67,7 @@ omamas/
 │   ├── symlink.sh               shared library (sourced): link_file, prune_stale_links
 │   ├── _template.sh             copy to start a new module
 │   ├── 05-sudo-touchid.sh       ┐
+│   ├── 07-rosetta.sh            │
 │   ├── 10-homebrew.sh           │
 │   ├── 20-packages.sh           │ modules: run in numeric order by setup.sh,
 │   ├── 30-directories.sh        │ each one also runs standalone
