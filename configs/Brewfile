@@ -81,6 +81,8 @@ brew "pandoc"
 brew "ripgrep"
 # Rust toolchain installer
 brew "rustup"
+# Static analysis and lint tool, for (ba)sh scripts
+brew "shellcheck"
 # Autoformat shell script source code
 brew "shfmt"
 # Cross-shell prompt for astronauts
@@ -123,6 +125,8 @@ cask "blockblock"
 cask "brave-browser"
 # Design tool
 cask "canva"
+# Anthropic's official Claude AI desktop app
+cask "claude"
 # Terminal-based AI coding assistant
 cask "claude-code"
 # Free app that makes your Internet safer

@@ -45,11 +45,12 @@ After that the run is unattended. The summary lists failed modules, follow-ups (
 - [ ] **Open a new terminal**, so the new shell config loads.
 - [ ] **Log out and back in** if the summary asks; some global preferences only apply then.
 - [ ] **Turn on 1Password's SSH agent** (Settings → Developer). `~/.ssh/config` already points at it, so git over SSH works from then on. If 1Password asks to approve an app's use of a key, approve it.
+- [ ] **Clone the private repos:** if the summary listed repos it couldn't clone yet (no SSH access during the first run), run `./setup.sh --only repos` now.
 - [ ] **Restore secrets** that aren't in the repo: anything in `~/.ssh`, and tokens for `~/.zshrc.local`.
 - [ ] **Sign into apps** and enter licenses: Dropbox, Slack, Zoom, Notion and the rest.
 - [ ] **Grant privacy permissions** as apps ask: Accessibility, Screen Recording, Full Disk Access.
 - [ ] **Install language runtimes** with `mise install`. mise is installed, but runtimes are not yet a module.
-- [ ] **Restore Claude:** quit Claude if it's open, wait for iCloud Drive to sync, then run `migrate/claude-restore.sh` and open Claude to sign in. Clone your repos to their old paths so sessions resume.
+- [ ] **Restore Claude:** quit Claude if it's open, wait for iCloud Drive to sync, then run `migrate/claude-restore.sh` and open Claude to sign in. Sessions resume because `45-repos` cloned your repos to their old paths.
 - [ ] **Confirm it converged:** `./setup.sh` again should report `0 changed` for every module.
 
 ## Layout
@@ -69,6 +70,7 @@ omamas/
 │   ├── home/                    mirror of $HOME; every file is symlinked into place
 │   ├── fonts/                   .ttf/.otf/.ttc copied to ~/Library/Fonts
 │   ├── macos/computer-name.conf this Mac's name
+│   ├── repos.conf               git repos to clone under ~/Work
 │   └── macos/defaults.conf      `defaults` preferences
 ├── scripts/                   Imperative · how to get there
 │   ├── utils.sh                 shared runtime (sourced): logging, traps, run, sudo, backups
@@ -82,6 +84,7 @@ omamas/
 │   ├── 20-packages.sh           │ modules: run in numeric order by setup.sh,
 │   ├── 30-directories.sh        │ each one also runs standalone
 │   ├── 40-dotfiles.sh           │
+│   ├── 45-repos.sh              │
 │   ├── 50-fonts.sh              │
 │   └── 60-macos-defaults.sh     ┘
 ├── assets/logo.png            Project logo
@@ -141,6 +144,7 @@ cp -a ~/.local/state/omamas/backups/<run-id>/. ~/
 | `configs/Brewfile` | `brew "x"`, `cask "y"`, `tap "a/b"`, `mas "App", id: N` | `20-packages` |
 | `configs/directories.conf` | `<path> [octal-mode]` | `30-directories` |
 | `configs/home/**` | file at `configs/home/P` → symlink at `~/P` | `40-dotfiles` |
+| `configs/repos.conf` | `<host>/<owner>/<repo>`, cloned to `~/Work/<host>/<owner>/<repo>` | `45-repos` |
 | `configs/fonts/*` | font files | `50-fonts` |
 | `configs/macos/defaults.conf` | `<domain> <key> <-bool\|-int\|-float\|-string> <value…>` | `60-macos-defaults` |
 
@@ -166,6 +170,23 @@ diff -u configs/Brewfile drafts/*/Brewfile     # prune, then copy over
 OMAMAS_CAPTURE_DOMAINS="com.apple.dock com.googlecode.iterm2" ./capture.sh --only defaults
 ./setup.sh --dry-run                           # after adopting: should report ~0 pending on this Mac
 ```
+
+## Repos
+
+`45-repos.sh` clones each repo in `configs/repos.conf` that isn't checked out yet, to the same path it has on this Mac: `github.com/thebenwalther/pipeline` → `~/Work/github.com/thebenwalther/pipeline`. Existing checkouts are never fetched, pulled or changed, so it's safe on a Mac you're working on.
+
+- **Access:** it tries SSH first (1Password's agent), then HTTPS with your `gh auth login` if you have one, then anonymous HTTPS (public repos only). Every clone ends with an SSH `origin`, like your existing repos.
+- **On a fresh Mac** the private repos usually can't be reached during the first run: 1Password was just installed and its SSH agent isn't on yet. Those are listed in the summary instead of failing the run. Turn the agent on, then run `./setup.sh --only repos`.
+- **Privacy:** `repos.conf` is public, so the *names* of private repos listed there are visible; their contents aren't.
+
+## Apps installed outside Homebrew
+
+If a cask in the Brewfile is already in `/Applications` because you downloaded it from the vendor, `brew bundle` would refuse to install over it. The packages step handles that per app:
+
+- **Same version as the cask:** it adopts the app (`brew install --cask --adopt`), so Homebrew manages it from then on. Nothing is downloaded again.
+- **Different version:** it leaves the app alone and skips that cask, with a warning that says how to hand it over (`brew install --cask --force <cask>` once the app is quit).
+
+On a new Mac, where none of these apps exist yet, every cask simply installs.
 
 ## Moving Claude data between Macs
 
