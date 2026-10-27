@@ -1,0 +1,185 @@
+# Brewfile draft captured from Bizarro on 2026-10-27.
+# Everything installed on request. Delete what you don't want on a new Mac.
+
+tap "anomalyco/tap", "https://github.com/anomalyco/homebrew-tap.git"
+tap "olets/tap", trusted: true
+# ARP scanning and fingerprinting tool
+brew "arp-scan"
+# Improved shell history for zsh, bash, fish and nushell
+brew "atuin"
+# Terminal bandwidth utilization tool
+brew "bandwhich"
+# Clone of cat(1) with syntax highlighting and Git integration
+brew "bat"
+# Resource monitor. C++ version and continuation of bashtop and bpytop
+brew "btop"
+# GNU File, Shell, and Text utilities
+brew "coreutils"
+# More intuitive version of du in rust
+brew "dust"
+# Perl lib for reading and writing EXIF metadata
+brew "exiftool"
+# Modern, maintained replacement for ls
+brew "eza"
+# Like neofetch, but much faster because written mostly in C
+brew "fastfetch"
+# Simple, fast and user-friendly alternative to find
+brew "fd"
+# Play, record, convert, and stream select audio and video codecs
+brew "ffmpeg"
+# Command-line fuzzy finder written in Go
+brew "fzf"
+# GitHub command-line tool
+brew "gh"
+# Distributed revision control system
+brew "git"
+# Alternative to top/htop
+brew "glances"
+# Render markdown on the CLI
+brew "glow"
+# GNU implementation of the famous stream editor
+brew "gnu-sed"
+# GNU Privacy Guard (OpenPGP)
+brew "gnupg"
+# Tool for glamorous shell scripts
+brew "gum"
+# Tools and libraries to manipulate images in select formats
+brew "imagemagick"
+# Full featured CLI system information tool
+brew "inxi"
+# Calculate various network masks, etc. from a given IP address
+brew "ipcalc"
+# Lightweight and flexible command-line JSON processor
+brew "jq"
+# Simple terminal UI for git commands
+brew "lazygit"
+# Pager program similar to more
+brew "less"
+# Package manager for the Lua programming language
+brew "luarocks"
+# Mac App Store command-line interface
+brew "mas"
+# TCP port scanner, scans entire Internet in under 5 minutes
+brew "masscan"
+# Deep clean and optimize your Mac
+brew "mole"
+# 'traceroute' and 'ping' in a single tool
+brew "mtr"
+# Incremental parsing library
+brew "tree-sitter"
+# Ambitious Vim-fork focused on extensibility and agility
+brew "neovim"
+# Port scanning utility for large networks
+brew "nmap"
+# Create, run, and share large language models (LLMs)
+brew "ollama", restart_service: :changed
+# Swiss-army knife of markup format conversion
+brew "pandoc"
+# Search tool like grep and The Silver Searcher
+brew "ripgrep"
+# Rust toolchain installer
+brew "rustup"
+# Autoformat shell script source code
+brew "shfmt"
+# Cross-shell prompt for astronauts
+brew "starship"
+# User interface to the TELNET protocol
+brew "telnet"
+# Simplified and community-driven man pages
+brew "tldr"
+# Terminal multiplexer
+brew "tmux"
+# Extremely fast Python package installer and resolver, written in Rust
+brew "uv"
+# Internet file retriever
+brew "wget"
+# Lookup tool for domain names and other internet resources
+brew "whois"
+# XML command-line utilities
+brew "xmlstarlet"
+# Yet Another Dotfiles Manager
+brew "yadm"
+# Pluggable terminal workspace, with terminal multiplexer as the base feature
+brew "zellij"
+# Network scanner for Internet-wide network studies
+brew "zmap"
+# Shell extension to navigate your filesystem faster
+brew "zoxide"
+# UNIX shell (command interpreter)
+brew "zsh"
+# Desktop password and login vault
+cask "bitwarden"
+# Monitors common persistence locations
+cask "blockblock"
+# Web browser focusing on privacy
+cask "brave-browser"
+# Design tool
+cask "canva"
+# Terminal-based AI coding assistant
+cask "claude-code"
+# Free app that makes your Internet safer
+cask "cloudflare-warp"
+# Plain-text editor for web pages, program source codes and more
+cask "coteditor"
+# Voice and text chat software
+cask "discord"
+# Client for the Dropbox cloud storage service
+cask "dropbox"
+cask "font-awesome-terminal-fonts"
+cask "font-jetbrains-mono-nerd-font"
+cask "font-meslo-lg-nerd-font"
+cask "font-noto-emoji"
+# Terminal emulator that uses platform-native UI and GPU acceleration
+cask "ghostty"
+# Utility to hide menu bar items
+cask "hiddenbar"
+# Menu bar calendar
+cask "itsycal"
+# Tool to show what is persistently installed on the computer
+cask "knockknock"
+# Open-source cross-platform alternative to AirDrop
+cask "localsend"
+# Software for Logitech devices
+cask "logi-options+"
+# Open-source firewall to block unknown outgoing connections
+cask "lulu"
+# Multi-platform web browser
+cask "microsoft-edge"
+# Tool to control external monitor brightness & volume
+cask "monitorcontrol"
+# Smooths scrolling and set mouse scroll directions independently
+cask "mos"
+# Network information and diagnostics utility
+cask "neo-network-utility"
+# Network monitor
+cask "netiquette"
+# App to write, plan, collaborate, and get organised
+cask "notion"
+# Knowledge base that works on top of a local folder of plain text Markdown files
+cask "obsidian"
+# Utility to uninstall apps and remove leftover files from old/uninstalled apps
+cask "pearcleaner"
+# Move and resize windows using keyboard shortcuts or snap areas
+cask "rectangle"
+# Screenshot measurement and annotation tool
+cask "shottr"
+# Automatically checks computer's security
+cask "silentknight"
+# Team communication and collaboration software
+cask "slack"
+# Displays all open files and sockets in use by all running processes
+cask "sloth"
+# Mesh VPN based on WireGuard
+cask "tailscale-app"
+# Virtual machines UI using QEMU
+cask "utm"
+# Multiplayer code editor
+cask "zed"
+# Video communication and virtual meeting platform
+cask "zoom"
+mas "Adblock Plus", id: 1432731683
+mas "Bear", id: 1091189122
+mas "Pixelmator Pro", id: 1289583905
+go "cmd/go"
+go "cmd/gofmt"
+npm "corepack"

@@ -1,0 +1,35 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install shellcheck
+      - run: tests/run.sh
+
+  # GitHub's macOS runners are ephemeral VMs with passwordless sudo: the closest
+  # thing to a factory-fresh Mac that CI offers. Bootstrap the way a user
+  # would (`curl | bash` is simulated with `cat | bash` against this commit),
+  # then run again and require the second pass to change nothing.
+  e2e:
+    runs-on: macos-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bootstrap via install.sh
+        run: |
+          git checkout -B ci-under-test
+          cat install.sh | OMAMAS_REPO="file://$PWD" OMAMAS_REF=ci-under-test \
+            OMAMAS_DIR="$RUNNER_TEMP/omamas" bash
+      - name: Second run must be a no-op
+        run: |
+          "$RUNNER_TEMP/omamas/setup.sh" | tee second-run.log
+          if grep -E '\[SUCCESS\] +[a-z-]+: [1-9][0-9]* changed' second-run.log; then
+            echo "::error::Second run changed state; a module is not idempotent."
+            exit 1
+          fi
