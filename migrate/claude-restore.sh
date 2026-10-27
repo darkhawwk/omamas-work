@@ -117,12 +117,13 @@ main() {
     die "Could not open the image (wrong password?)"
   [[ -f $MOUNT/manifest.txt ]] || die "Not an Omamas Claude backup: no manifest.txt"
 
-  local user home
+  local user home me why
   user=$(manifest_value user)
   home=$(manifest_value home)
+  me=$(id -un)
   log_info "Backup from $(manifest_value computer), $(manifest_value created), user $user"
-  if [[ $user != "$(id -un)" || $home != "$HOME" ]]; then
-    local why="Backup is for $user ($home); this is $(id -un) ($HOME). Sessions are filed by path and won't resume."
+  if [[ $user != "$me" || $home != "$HOME" ]]; then
+    why="Backup is for $user ($home); this is $me ($HOME). Sessions are filed by path and won't resume."
     ((FORCE)) || die "$why Pass --force to restore anyway."
     log_warn "$why"
   fi
