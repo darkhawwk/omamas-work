@@ -47,6 +47,10 @@ has_output() { grep -Fq -- "$1" <<<"$OUT"; }
 lacks_output() { ! grep -Fq -- "$1" <<<"$OUT"; }
 rc_is() { [[ $RC -eq $1 ]]; }
 content_is() { [[ -f $1 && $(cat "$1") == "$2" ]]; }
+# section_has FILE "## Heading" TEXT — TEXT appears under that Markdown heading.
+section_has() {
+  awk -v h="$2" 'index($0, h) == 1 { on = 1; next } /^## / { on = 0 } on' "$1" | grep -Fq -- "$3"
+}
 backups_dir() { echo "$FAKE_HOME/.local/state/omamas/backups"; }
 
 finish() {

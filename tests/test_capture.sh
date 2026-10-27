@@ -31,12 +31,12 @@ check "flags file with a token" grep -Fq '`~/.zprofile` (' "$R"
 check "names the secret kind" grep -Fq 'GitHub token' "$R"
 check "never prints secret values" bash -c "! grep -rq ghp_ '$OUTDIR'"
 check "descends into ~/.config" grep -Fq '`~/.config/git/`' "$R"
-check "routes ~/.ssh to credentials" grep -A3 'Credentials' "$R" | grep -Fq '~/.ssh'
-check "recognizes Omamas-managed links" grep -A3 'Already managed' "$R" | grep -Fq '~/.vimrc'
+check "routes ~/.ssh to credentials" section_has "$R" "## Credentials" '~/.ssh'
+check "recognizes Omamas-managed links" section_has "$R" "## Already managed" '~/.vimrc'
 check "ignores history and caches" grep -Fq '.zsh_history' "$R"
 check "ignores entries at list line ends" bash -c "grep '^History' '$R' | grep -q .bash_history"
 check "ignores backup files" bash -c "! grep -q 'cp -p ~/.zshrc.bak' '$R' && grep '^History' '$R' | grep -q 'zshrc.bak'"
-check "routes large app files to app data" grep -A4 '^## App data' "$R" | grep -Fq '~/.app-state.json'
+check "routes large app files to app data" section_has "$R" "## App data" '~/.app-state.json'
 check "adopt command only for clean candidates" bash -c "grep -q 'cp -p ~/.zshrc configs/home/.zshrc' '$R' && ! grep -q 'cp -p ~/.zprofile' '$R'"
 check "writes REVIEW.md" test -s "$OUTDIR/REVIEW.md"
 check "caps file counts on huge directories" grep -Fq '`~/.big/` (1000+ files' "$R"

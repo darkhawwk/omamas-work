@@ -8,7 +8,7 @@ jobs:
   test:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: brew install shellcheck
       - run: tests/run.sh
 
@@ -19,8 +19,15 @@ jobs:
   e2e:
     runs-on: macos-latest
     needs: test
+    timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+      # Runners have no Apple ID, so App Store installs can only fail there.
+      # brew bundle honors this list in both `install` and `check`.
+      - name: Skip Mac App Store entries
+        run: |
+          ids=$(grep -Eo 'id: *[0-9]+' configs/Brewfile | grep -Eo '[0-9]+' | xargs || true)
+          echo "HOMEBREW_BUNDLE_MAS_SKIP=$ids" >> "$GITHUB_ENV"
       - name: Bootstrap via install.sh
         run: |
           git checkout -B ci-under-test
