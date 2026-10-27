@@ -7,13 +7,13 @@ cd "$(dirname "$0")/.."
 status=0
 
 echo "syntax (bash -n)"
-for f in install.sh setup.sh capture.sh scripts/*.sh tests/*.sh; do
+for f in install.sh setup.sh capture.sh scripts/*.sh migrate/*.sh tests/*.sh; do
   /bin/bash -n "$f" || { echo "  ✗ $f"; status=1; }
 done
 
 if command -v shellcheck >/dev/null; then
   echo "shellcheck"
-  shellcheck -x -S warning install.sh setup.sh capture.sh scripts/*.sh || status=1
+  shellcheck -x -S warning install.sh setup.sh capture.sh scripts/*.sh migrate/*.sh || status=1
 else
   echo "shellcheck not installed; skipping lint"
 fi

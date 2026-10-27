@@ -18,6 +18,7 @@ Nothing has to be installed first: `install.sh` brings the Xcode Command Line To
 
 ### Before you run it
 
+- [ ] **On the old Mac: back up Claude.** Quit Claude, then run `migrate/claude-backup.sh` from Terminal (see [Moving Claude data between Macs](#moving-claude-data-between-macs)). It also lists repos with uncommitted or unpushed work; push those now.
 - [ ] **macOS 14 (Sonoma) or newer**, set up through Setup Assistant with an **admin** account. Run Omamas as that user, not with `sudo`.
 - [ ] **Connected to the internet.**
 - [ ] **Touch ID fingerprint enrolled** (System Settings → Touch ID & Password), so `sudo` can use it after the first prompt. Without one, sudo falls back to your password.
@@ -26,6 +27,7 @@ Nothing has to be installed first: `install.sh` brings the Xcode Command Line To
   ```bash
   curl -fsSL https://raw.githubusercontent.com/thebenwalther/omamas/main/install.sh | OMAMAS_DIR=~/Work/github.com/thebenwalther/omamas bash
   ```
+- [ ] **Same username as the old Mac** (`el-kal`) if you'll restore Claude sessions; they're filed by path.
 - [ ] **Plugged in**, if it's a laptop. `caffeinate` keeps it awake, but downloading every cask takes a while.
 
 ### While it runs: stay nearby for the first few minutes
@@ -47,7 +49,7 @@ After that the run is unattended. The summary lists failed modules, follow-ups (
 - [ ] **Sign into apps** and enter licenses: Dropbox, Slack, Zoom, Notion and the rest.
 - [ ] **Grant privacy permissions** as apps ask: Accessibility, Screen Recording, Full Disk Access.
 - [ ] **Install language runtimes** with `mise install`. mise is installed, but runtimes are not yet a module.
-- [ ] **Copy Claude Code history** (`~/.claude/projects`) privately from the old Mac if you want to resume conversations. It only matches up if your username and folder paths are the same.
+- [ ] **Restore Claude:** quit Claude if it's open, wait for iCloud Drive to sync, then run `migrate/claude-restore.sh` and open Claude to sign in. Clone your repos to their old paths so sessions resume.
 - [ ] **Confirm it converged:** `./setup.sh` again should report `0 changed` for every module.
 
 ## Layout
@@ -57,17 +59,23 @@ omamas/
 ├── install.sh                 Orchestration · remote bootstrap (curl | bash)
 ├── setup.sh                   Orchestration · local runner: pre-flight, log, sudo, modules
 ├── capture.sh                 Read-only: drafts configs/ from the current Mac into drafts/
+├── migrate/                   Claude data between Macs (not part of setup.sh)
+│   ├── claude-backup.sh         encrypted image of local Claude data → iCloud Drive
+│   └── claude-restore.sh        restore it on the new Mac
 ├── configs/                   State · what should exist. No logic.
 │   ├── Brewfile                 formulae, casks, taps, mas apps
+│   ├── claude-backup.conf       where Claude backups go; which folder to check for repos
 │   ├── directories.conf         directories + modes
 │   ├── home/                    mirror of $HOME; every file is symlinked into place
 │   ├── fonts/                   .ttf/.otf/.ttc copied to ~/Library/Fonts
+│   ├── macos/computer-name.conf this Mac's name
 │   └── macos/defaults.conf      `defaults` preferences
 ├── scripts/                   Imperative · how to get there
 │   ├── utils.sh                 shared runtime (sourced): logging, traps, run, sudo, backups
 │   ├── symlink.sh               shared library (sourced): link_file, prune_stale_links
 │   ├── _template.sh             copy to start a new module
-│   ├── 05-sudo-touchid.sh       ┐
+│   ├── 02-computer-name.sh      ┐
+│   ├── 05-sudo-touchid.sh       │
 │   ├── 07-rosetta.sh            │
 │   ├── 10-homebrew.sh           │
 │   ├── 15-1password.sh          │
@@ -159,6 +167,38 @@ OMAMAS_CAPTURE_DOMAINS="com.apple.dock com.googlecode.iterm2" ./capture.sh --onl
 ./setup.sh --dry-run                           # after adopting: should report ~0 pending on this Mac
 ```
 
+## Moving Claude data between Macs
+
+Chats on claude.ai and in the Claude app's Chat tab live in your Anthropic account and come back when you sign in. Claude Code sessions don't: their transcripts, memory, settings and the desktop app's session list are local files. `migrate/` moves those through iCloud Drive.
+
+**On the old Mac:** quit the Claude app and any `claude` sessions, then from Terminal:
+```bash
+migrate/claude-backup.sh --dry-run   # what it will save, and repos with local-only work
+migrate/claude-backup.sh             # asks for a password, writes the image
+```
+- **What's in the image:** `~/.claude`, `~/.claude.json`, and `~/Library/Application Support/Claude`. Caches, logs, runtime state and the bundled Claude Code binary are left out (they're regenerated), and so are Electron's lock files (restoring those stops the app launching). Typically under 100 MB.
+- **Where it goes:** `claude-<run-id>.dmg` (AES-256, encrypted with your password) and a plain `claude-<run-id>.txt` summary, written to the `destination` in `configs/claude-backup.conf`. That's iCloud Drive by default. The image is encrypted because transcripts contain everything read or written in a session, and iCloud Drive is only end-to-end encrypted with Advanced Data Protection.
+- **The password:** save it in 1Password. Without it the image can't be opened.
+- **Repos at risk:** git repos under `scan` with uncommitted changes, unpushed commits, stashes or no remote are listed in the output and in the summary. Push them before wiping the old Mac.
+
+**On the new Mac,** after Omamas has run and iCloud Drive has synced:
+```bash
+migrate/claude-restore.sh --dry-run  # preview
+migrate/claude-restore.sh            # newest image, or pass one: claude-restore.sh path/to/claude-….dmg
+```
+- **Safety checks:** it refuses while Claude is running, and refuses a backup made for a different username or home folder. Sessions are filed by absolute path, so they wouldn't resume; pass `--force` to restore anyway.
+- **What it changes:** each item is made to match the backup. What it replaces is copied to `~/.local/state/omamas/backups/<run-id>/claude-restore/` first. The new Mac's bundled Claude Code and caches are left alone.
+- **Your login:** credentials live in the Keychain and are never backed up. Open Claude and sign in.
+- **Getting sessions back:** clone your repos to the same paths they had (e.g. `~/Work/github.com/...`) for `claude --resume` and the Code tab to find their sessions.
+
+Anthropic doesn't document a migration path, so treat the desktop app's session list as best effort; `~/.claude` is plain files and restores reliably.
+
+## Computer name
+
+`02-computer-name.sh` names the Mac from `configs/macos/computer-name.conf` (`Bizarro`). It sets the friendly ComputerName (Finder, AirDrop), and derives the network names LocalHostName (`Bizarro.local`) and HostName (what `hostname` prints) from it, replacing characters they don't allow with hyphens. It only asks for sudo when a name actually changes.
+
+While the old and new Mac are both on the same network with the same name, macOS adds a number to one's network name (`Bizarro-2.local`). Once the old Mac is wiped or renamed, run `./setup.sh --only computer-name` on the new one to settle it.
+
 ## Touch ID for sudo
 
 `05-sudo-touchid` copies Apple's `/etc/pam.d/sudo_local.template` to `sudo_local` with the `pam_tid.so` line uncommented (macOS 14+). Unlike edits to `/etc/pam.d/sudo`, `sudo_local` survives OS updates.
@@ -237,6 +277,7 @@ cat install.sh | OMAMAS_REPO="file://$PWD" OMAMAS_REF=$(git branch --show-curren
 | `OMAMAS_CONFIG_DIR` | Use a different State tier (handy for sandboxes and per-machine profiles) |
 | `OMAMAS_UPGRADE=1` | Also `brew update` and upgrade outdated packages (same as `--upgrade`) |
 | `OMAMAS_CAPTURE_DOMAINS` | Preference domains `capture.sh` inspects (default: a curated list of macOS domains) |
+| `OMAMAS_BACKUP_PASSWORD` | Password for `migrate/` images without a prompt (automation and tests; prefer the prompt) |
 | `OMAMAS_PAM_DIR` | Use a different PAM directory than `/etc/pam.d` (used by the tests) |
 | `OMAMAS_NO_RESTART=1` | Don't quit or restart Dock, Finder or System Settings; add a follow-up note instead |
 | `OMAMAS_MIN_MACOS` | Minimum macOS version allowed by pre-flight (default `14.0`) |
