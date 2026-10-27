@@ -33,6 +33,7 @@ Nothing has to be installed first: `install.sh` brings the Xcode Command Line To
 - [ ] **Your password, once.** From then on Touch ID works.
 - [ ] **Command Line Tools dialog.** Only appears if the silent install isn't available; click Install and the script waits.
 - [ ] **"Terminal wants to control System Settings"**: allow it. The preferences step closes System Settings so it can't overwrite new values.
+- [ ] **Sign in to 1Password when it opens.** It's installed right after Homebrew and opened for you; the run doesn't wait, so sign in while packages install.
 - [ ] **Cask installer prompts.** Some apps ask for a password or permission mid-install.
 
 After that the run is unattended. The summary lists failed modules, follow-ups (e.g. log out for global preferences), the log file and the backup folder. Re-running is always safe and only retries what isn't done yet.
@@ -41,7 +42,7 @@ After that the run is unattended. The summary lists failed modules, follow-ups (
 
 - [ ] **Open a new terminal**, so the new shell config loads.
 - [ ] **Log out and back in** if the summary asks; some global preferences only apply then.
-- [ ] **Sign into 1Password** and turn on its SSH agent. Your SSH keys and git-over-SSH depend on it.
+- [ ] **Turn on 1Password's SSH agent** (Settings → Developer). `~/.ssh/config` already points at it, so git over SSH works from then on. If 1Password asks to approve an app's use of a key, approve it.
 - [ ] **Restore secrets** that aren't in the repo: anything in `~/.ssh`, and tokens for `~/.zshrc.local`.
 - [ ] **Sign into apps** and enter licenses: Dropbox, Slack, Zoom, Notion and the rest.
 - [ ] **Grant privacy permissions** as apps ask: Accessibility, Screen Recording, Full Disk Access.
@@ -69,6 +70,7 @@ omamas/
 │   ├── 05-sudo-touchid.sh       ┐
 │   ├── 07-rosetta.sh            │
 │   ├── 10-homebrew.sh           │
+│   ├── 15-1password.sh          │
 │   ├── 20-packages.sh           │ modules: run in numeric order by setup.sh,
 │   ├── 30-directories.sh        │ each one also runs standalone
 │   ├── 40-dotfiles.sh           │
