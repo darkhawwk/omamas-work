@@ -29,8 +29,9 @@ DEFAULT_DOMAINS="NSGlobalDomain com.apple.dock com.apple.finder com.apple.screen
   com.apple.menuextra.clock com.apple.WindowManager com.apple.spaces com.apple.desktopservices
   com.apple.screensaver com.apple.TextEdit com.apple.ActivityMonitor com.apple.Terminal"
 
-# Preference keys that record state rather than choices.
-NOISE_KEYS='^(mod-count|loc|region|trash-full|version|AK.*|PK.*|NSLinguistic.*|NSWindow.*|NSSplitView.*|NSTableView.*|NSToolbar.*|NSNavPanel.*|NSStatusItem.*|FXRecentFolders|FXConnectToLastURL|GoToField.*)$|[Ll]ast|(^|[^p])[Dd]ate|[Tt]ime[Ss]tamp|[Vv]ersion|UUID|[Aa]nalytics|[Cc]ache|[Ww]indow|[Ss]tate$|[Cc]ount$|Upgraded|TransitionComplete|EverEdited|SerialNumber|^FXICloud|^FXDetached|Width|Height|ExpandedState'
+# Preference keys that record state rather than choices. KB_*Option are only the
+# labels System Settings shows; the real quote setting is NSUserQuotesArray.
+NOISE_KEYS='^(mod-count|loc|region|trash-full|version|AK.*|PK.*|NSLinguistic.*|NSWindow.*|NSSplitView.*|NSTableView.*|NSToolbar.*|NSNavPanel.*|NSStatusItem.*|KB_.*Option|FXRecentFolders|FXConnectToLastURL|GoToField.*)$|[Ll]ast|(^|[^p])[Dd]ate|[Tt]ime[Ss]tamp|[Vv]ersion|UUID|[Aa]nalytics|[Cc]ache|[Ww]indow|[Ss]tate$|[Cc]ount$|Upgraded|TransitionComplete|EverEdited|SerialNumber|^FXICloud|^FXDetached|Width|Height|ExpandedState'
 
 HAS_SPACE='[[:space:]]'
 EDGE_SPACE='^[[:space:]]|[[:space:]]$'

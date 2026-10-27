@@ -73,6 +73,18 @@ is_current() {
   fi
 }
 
+# Current value and type for change logs, e.g. "2 (integer)" or "unset", so a
+# setting that flips on every run shows what macOS wrote back.
+describe_current() {
+  local v t
+  v=$(defaults read "$1" "$2" 2>/dev/null) || {
+    echo unset
+    return 0
+  }
+  t=$(defaults read-type "$1" "$2" 2>/dev/null) || t=""
+  printf '%s (%s)' "${v%%$'\n'*}" "${t#Type is }"
+}
+
 # An open System Settings window can overwrite freshly written values, so close
 # it lazily — right before the first actual write.
 quit_system_settings() {
@@ -97,7 +109,7 @@ main() {
     return 0
   fi
 
-  local domain key type value want proc
+  local domain key type value want proc was
   while read -r domain key type value; do
     value=${value/#\~/$HOME}
     domain=${domain/#\~/$HOME}
@@ -120,9 +132,14 @@ main() {
     if [[ $type == -bool || $type == -boolean ]]; then
       if [[ $want == 1 ]]; then value=true; else value=false; fi
     fi
+    was=$(describe_current "$domain" "$key")
     quit_system_settings
     if run defaults write "$domain" "$key" "$type" "$value"; then
-      is_dry_run || log_success "$domain $key = $value"
+      if is_dry_run; then
+        log_info "  currently: $was"
+      else
+        log_success "$domain $key = $value (was: $was)"
+      fi
       proc=$(process_for_domain "$domain")
       [[ -z $proc || $RESTART == *" $proc "* ]] || RESTART="$RESTART$proc "
     else

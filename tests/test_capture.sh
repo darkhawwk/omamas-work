@@ -55,6 +55,7 @@ defaults write "$D" tilesize -int 48
 defaults write "$D" delay -float 0.1
 defaults write "$D" location -string "$FAKE_HOME/Pictures/Shots"
 defaults write "$D" mod-count -int 9
+defaults write "$D" KB_DoubleQuoteOption -string "“abc”"
 defaults write "$D" persistent-apps -array a b
 defaults write "$D" "key with space" -bool true
 EXTRA_ENV="OMAMAS_CAPTURE_DOMAINS=$D" omamas capture.sh --only defaults --out "$OUTDIR"
@@ -64,7 +65,7 @@ check "captures bool" grep -Eq "autohide +-bool +true$" "$C"
 check "captures int" grep -Eq "tilesize +-int +48$" "$C"
 check "captures float" grep -Eq "delay +-float +0.1$" "$C"
 check "rewrites \$HOME as ~ for portability" grep -Eq "location +-string +~/Pictures/Shots$" "$C"
-check "drops noise keys" bash -c "! grep -q mod-count '$C'"
+check "drops noise keys" bash -c "! grep -Eq 'mod-count|KB_DoubleQuoteOption' '$C'"
 check "skips arrays and keys with spaces" bash -c "! grep -Eq 'persistent-apps|key with space' '$C'"
 
 echo "capture: round trip through 60-macos-defaults"

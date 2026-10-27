@@ -30,12 +30,14 @@ defaults write "$D" flag -string 1 # same printed value, wrong type
 omamas $M
 check "rewrites value of the wrong type" has_output "1 changed, 3 unchanged"
 check "type restored to boolean" test "$(defaults read-type "$D" flag)" = "Type is boolean"
+check "logs the value it replaced" has_output "flag = true (was: 1 (string))"
 
 echo "defaults: dry run"
 defaults write "$D" count -int 7
 omamas $M --dry-run
 check "reports pending change" has_output "1 pending"
 check "does not write" test "$(defaults read "$D" count)" = 7
+check "shows the current value" has_output "currently: 7 (integer)"
 
 echo "defaults: invalid entries"
 cat >>"$CFG/macos/defaults.conf" <<CONF
