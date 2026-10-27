@@ -284,9 +284,9 @@ module_start() {
 
 # Standard epilogue: one summary line, non-zero exit if anything failed.
 module_finish() {
-  local verb=changed
-  if is_dry_run; then verb=pending; fi
-  local summary="$OMAMAS_COUNT_CHANGED $verb, $OMAMAS_COUNT_UNCHANGED unchanged"
+  local outcome=changed
+  if is_dry_run; then outcome=pending; fi
+  local summary="$OMAMAS_COUNT_CHANGED $outcome, $OMAMAS_COUNT_UNCHANGED unchanged"
   if ((OMAMAS_COUNT_FAILED > 0)); then
     die "$MODULE_NAME: $summary, $OMAMAS_COUNT_FAILED failed"
   fi
