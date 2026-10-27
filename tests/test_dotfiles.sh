@@ -74,6 +74,19 @@ check "exits non-zero" rc_is 1
 check "explains the refusal" has_output "parent resolves inside Omamas"
 check "creates no self-referencing link in configs/" test ! -L "$CFG/home/.config/app/conf"
 
+echo "dotfiles: folder we can't write to"
+new_sandbox
+mkdir -p "$CFG/home/.config/tool" "$FAKE_HOME/.config/tool"
+echo new >"$CFG/home/.config/tool/config"
+echo old >"$FAKE_HOME/.config/tool/config"
+chmod 555 "$FAKE_HOME/.config/tool"
+omamas $M
+chmod 755 "$FAKE_HOME/.config/tool"
+check "exits non-zero" rc_is 1
+check "names the folder and the fix" has_output "Can't write ~/.config/tool"
+check "gives the chown command" has_output "sudo chown -R $(id -un):staff ~/.config/tool"
+check "leaves the existing file in place" content_is "$FAKE_HOME/.config/tool/config" old
+
 echo "dotfiles: backup collisions within one run id"
 new_sandbox
 echo new >"$CFG/home/.zshrc"

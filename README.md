@@ -49,7 +49,6 @@ After that the run is unattended. The summary lists failed modules, follow-ups (
 - [ ] **Restore secrets** that aren't in the repo: anything in `~/.ssh`, and tokens for `~/.zshrc.local`.
 - [ ] **Sign into apps** and enter licenses: Dropbox, Slack, Zoom, Notion and the rest.
 - [ ] **Grant privacy permissions** as apps ask: Accessibility, Screen Recording, Full Disk Access.
-- [ ] **Install language runtimes** with `mise install`. mise is installed, but runtimes are not yet a module.
 - [ ] **Restore Claude:** quit Claude if it's open, wait for iCloud Drive to sync, then run `migrate/claude-restore.sh` and open Claude to sign in. Sessions resume because `45-repos` cloned your repos to their old paths.
 - [ ] **Confirm it converged:** `./setup.sh` again should report `0 changed` for every module.
 
@@ -85,6 +84,7 @@ omamas/
 │   ├── 30-directories.sh        │ each one also runs standalone
 │   ├── 40-dotfiles.sh           │
 │   ├── 45-repos.sh              │
+│   ├── 47-runtimes.sh           │
 │   ├── 50-fonts.sh              │
 │   └── 60-macos-defaults.sh     ┘
 ├── assets/logo.png            Project logo
@@ -144,6 +144,7 @@ cp -a ~/.local/state/omamas/backups/<run-id>/. ~/
 | `configs/Brewfile` | `brew "x"`, `cask "y"`, `tap "a/b"`, `mas "App", id: N` | `20-packages` |
 | `configs/directories.conf` | `<path> [octal-mode]` | `30-directories` |
 | `configs/home/**` | file at `configs/home/P` → symlink at `~/P` | `40-dotfiles` |
+| `configs/home/.config/mise/config.toml` | mise `[tools]` table, e.g. `node = "lts"` | `47-runtimes` (linked by `40-dotfiles`) |
 | `configs/repos.conf` | `<host>/<owner>/<repo>`, cloned to `~/Work/<host>/<owner>/<repo>` | `45-repos` |
 | `configs/fonts/*` | font files | `50-fonts` |
 | `configs/macos/defaults.conf` | `<domain> <key> <-bool\|-int\|-float\|-string> <value…>` | `60-macos-defaults` |
@@ -178,6 +179,14 @@ OMAMAS_CAPTURE_DOMAINS="com.apple.dock com.googlecode.iterm2" ./capture.sh --onl
 - **Access:** it tries SSH first (1Password's agent), then HTTPS with your `gh auth login` if you have one, then anonymous HTTPS (public repos only). Every clone ends with an SSH `origin`, like your existing repos.
 - **On a fresh Mac** the private repos usually can't be reached during the first run: 1Password was just installed and its SSH agent isn't on yet. Those are listed in the summary instead of failing the run. Turn the agent on, then run `./setup.sh --only repos`.
 - **Privacy:** `repos.conf` is public, so the *names* of private repos listed there are visible; their contents aren't.
+
+## Language runtimes
+
+Your mise config (`configs/home/.config/mise/config.toml`) is linked like any dotfile, and `47-runtimes.sh` installs every tool in its `[tools]` table that has no version installed yet, with `mise install`.
+
+- **Versions follow the config.** Yours asks for `latest` and `lts`, so a new Mac gets the newest releases on the day it's set up, not the exact versions on this Mac. To reproduce exact versions instead, pin them (`node = "24.22.1"`). On a Mac that already has a tool, nothing changes; move to newer releases with `mise upgrade`.
+- **Missing is decided locally:** tools named in the config versus `mise ls --installed`. mise's own remote lookups silently drop tools whose "latest" can't be resolved (slow network, offline), which would hide real gaps.
+- **Project tools aren't installed here.** `mise install` runs from `$HOME`, so only the global config counts. Repos with their own `mise.toml` install their tools when you first `cd` into them and trust the file.
 
 ## Apps installed outside Homebrew
 

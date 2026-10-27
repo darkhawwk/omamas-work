@@ -20,6 +20,10 @@ jobs:
     runs-on: macos-latest
     needs: test
     timeout-minutes: 90
+    env:
+      # mise downloads several runtimes from GitHub releases; an authenticated
+      # token avoids the 60-requests-per-hour anonymous API limit.
+      GITHUB_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v5
       # Runners have no Apple ID, so App Store installs can only fail there.

@@ -1,0 +1,16 @@
+[tools]
+bun = "latest"
+go = "latest"
+node = "lts"
+python = "latest"
+ruby = "latest"
+zig = "latest"
+zls = "latest"
+
+[settings]
+always_keep_download = true
+experimental = true
+
+[settings.status]
+show_env = true
+show_tools = true

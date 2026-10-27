@@ -6,7 +6,7 @@ echo "setup.sh"
 new_sandbox
 echo x >"$CFG/home/.zshrc"
 omamas setup.sh --list
-check "--list prints modules in order" test "$(printf '%s\n' "$OUT" | cut -f1 | tr '\n' ' ')" = "computer-name sudo-touchid rosetta homebrew 1password packages directories dotfiles repos fonts macos-defaults "
+check "--list prints modules in order" test "$(printf '%s\n' "$OUT" | cut -f1 | tr '\n' ' ')" = "computer-name sudo-touchid rosetta homebrew 1password packages directories dotfiles repos runtimes fonts macos-defaults "
 omamas setup.sh --only bogus
 check "unknown module rejected" rc_is 1
 omamas setup.sh --dry-run --only directories --only dotfiles
