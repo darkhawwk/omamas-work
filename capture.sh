@@ -93,6 +93,15 @@ capture_brew() {
     log_error "brew bundle dump failed"
     return 0
   fi
+  # The dump can list Go's own tools (e.g. `go "cmd/go"` when Go comes from
+  # mise or similar). `go install` rejects standard-library paths, which are
+  # the ones without a dot in their first element.
+  local stdlib='^go "[^"./]+[/"]' dropped
+  dropped=$(printf '%s\n' "$body" | grep -cE "$stdlib" || true)
+  if ((dropped > 0)); then
+    body=$(printf '%s\n' "$body" | grep -vE "$stdlib")
+    log_info "Dropped $dropped Go standard-library entries (not installable)"
+  fi
   {
     echo "# Brewfile draft captured from $(scutil --get ComputerName 2>/dev/null || hostname) on $(date '+%Y-%m-%d')."
     echo "# Everything installed on request. Delete what you don't want on a new Mac."
