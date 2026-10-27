@@ -46,7 +46,7 @@ After that the run is unattended. The summary lists failed modules, follow-ups (
 - [ ] **Log out and back in** if the summary asks; some global preferences only apply then.
 - [ ] **Turn on 1Password's SSH agent** (Settings → Developer). `~/.ssh/config` already points at it, so git over SSH works from then on. If 1Password asks to approve an app's use of a key, approve it.
 - [ ] **Clone the private repos:** if the summary listed repos it couldn't clone yet (no SSH access during the first run), run `./setup.sh --only repos` now.
-- [ ] **Restore secrets** that aren't in the repo: anything in `~/.ssh`, and tokens for `~/.zshrc.local`.
+- [ ] **Turn on 1Password's CLI integration** (Settings → Developer → "Integrate with 1Password CLI"), then `./setup.sh --only secrets` if the summary said secrets weren't rendered.
 - [ ] **Sign into apps** and enter licenses: Dropbox, Slack, Zoom, Notion and the rest.
 - [ ] **Grant privacy permissions** as apps ask: Accessibility, Screen Recording, Full Disk Access.
 - [ ] **Restore Claude:** quit Claude if it's open, wait for iCloud Drive to sync, then run `migrate/claude-restore.sh` and open Claude to sign in. Sessions resume because `45-repos` cloned your repos to their old paths.
@@ -70,6 +70,7 @@ omamas/
 │   ├── fonts/                   .ttf/.otf/.ttc copied to ~/Library/Fonts
 │   ├── macos/computer-name.conf this Mac's name
 │   ├── repos.conf               git repos to clone under ~/Work
+│   ├── secrets/                 templates with op:// references, rendered into $HOME
 │   └── macos/defaults.conf      `defaults` preferences
 ├── scripts/                   Imperative · how to get there
 │   ├── utils.sh                 shared runtime (sourced): logging, traps, run, sudo, backups
@@ -85,6 +86,7 @@ omamas/
 │   ├── 40-dotfiles.sh           │
 │   ├── 45-repos.sh              │
 │   ├── 47-runtimes.sh           │
+│   ├── 48-secrets.sh            │
 │   ├── 50-fonts.sh              │
 │   └── 60-macos-defaults.sh     ┘
 ├── assets/logo.png            Project logo
@@ -179,6 +181,30 @@ OMAMAS_CAPTURE_DOMAINS="com.apple.dock com.googlecode.iterm2" ./capture.sh --onl
 - **Access:** it tries SSH first (1Password's agent), then HTTPS with your `gh auth login` if you have one, then anonymous HTTPS (public repos only). Every clone ends with an SSH `origin`, like your existing repos.
 - **On a fresh Mac** the private repos usually can't be reached during the first run: 1Password was just installed and its SSH agent isn't on yet. Those are listed in the summary instead of failing the run. Turn the agent on, then run `./setup.sh --only repos`.
 - **Privacy:** `repos.conf` is public, so the *names* of private repos listed there are visible; their contents aren't.
+
+## Secrets and signed commits
+
+**Secrets** never go in the repo. `configs/secrets/` mirrors `$HOME` with templates that hold 1Password *references* instead of values:
+
+```bash
+# configs/secrets/.zshrc.local
+export GITHUB_TOKEN="op://Private/GitHub/token"
+```
+
+`48-secrets.sh` runs `op inject` on each template and writes the result to the same path under `$HOME` with mode 600. `~/.zshrc` sources `~/.zshrc.local` last.
+- **Getting a reference:** in 1Password, open the item and use the field's menu → *Copy Secret Reference*.
+- **What gets logged:** only changed or unchanged, never a value. An older rendered file is backed up before it's replaced.
+- **When 1Password isn't ready:** if `op` isn't installed or the app's CLI integration is off, the run continues with a follow-up note instead of failing.
+- **Approvals:** 1Password asks you to approve (Touch ID) the first time setup reads secrets.
+
+**Signed commits:** `.gitconfig` signs every commit and tag with your 1Password "SSH Key" through `op-ssh-sign`.
+- **Touch ID:** 1Password asks for it when signing; approve it for the terminal app once to stop the prompts.
+- **Local verification:** `~/.config/git/allowed_signers` lets `git log --show-signature` verify your signatures.
+- **One step on GitHub:** add the same public key as a **Signing key** (Settings → SSH and GPG keys → New SSH key → Key type: *Signing Key*). Until then GitHub shows your commits as *Unverified*. With the CLI instead:
+  ```bash
+  gh auth refresh -s admin:ssh_signing_key
+  ssh-add -L | grep ' SSH Key$' > /tmp/signing.pub && gh ssh-key add /tmp/signing.pub --type signing --title "1Password SSH Key"
+  ```
 
 ## Language runtimes
 

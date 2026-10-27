@@ -36,7 +36,7 @@ running() {
   export EXTRA_ENV="PATH=$SHIMS:$PATH OMAMAS_BACKUP_PASSWORD=$PW"
 }
 
-git_q() { git -c user.name=t -c user.email=t@t -c init.defaultBranch=main "$@" -q; }
+git_q() { git -c user.name=t -c user.email=t@t -c init.defaultBranch=main -c commit.gpgsign=false -c tag.gpgsign=false "$@" -q; }
 
 echo "claude-backup"
 setup_home

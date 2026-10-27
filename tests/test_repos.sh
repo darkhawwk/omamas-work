@@ -3,7 +3,7 @@
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 M=scripts/45-repos.sh
 
-git_q() { git -c user.name=t -c user.email=t@t -c init.defaultBranch=main "$@" -q; }
+git_q() { git -c user.name=t -c user.email=t@t -c init.defaultBranch=main -c commit.gpgsign=false -c tag.gpgsign=false "$@" -q; }
 
 # Remotes: me/a and me/b exist; me/private does not (stands in for no access).
 new_remotes() {

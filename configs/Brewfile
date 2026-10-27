@@ -117,6 +117,8 @@ brew "zsh-autosuggestions"
 brew "zsh-fast-syntax-highlighting"
 # Password manager; holds the SSH keys (installed early by 15-1password.sh)
 cask "1password"
+# Command-line helper for the 1Password desktop app (used by 48-secrets.sh)
+cask "1password-cli"
 # Desktop password and login vault
 cask "bitwarden"
 # Monitors common persistence locations
