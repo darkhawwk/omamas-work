@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.png" alt="Omamas logo: a terminal prompt and cursor inside a blue-to-violet ring" width="160">
+</p>
+
 # Omamas
 
 *お任せ + macOS.* You leave the machine to it: one command turns a factory-reset Mac into your development environment. Running it again on a Mac you already use reconciles that machine back to the declared state, changing only what has drifted.
@@ -32,6 +36,7 @@ omamas/
 │   ├── 40-dotfiles.sh           │
 │   ├── 50-fonts.sh              │
 │   └── 60-macos-defaults.sh     ┘
+├── assets/logo.png            Project logo
 ├── tests/                     Sandboxed tests (fake $HOME; never touch the real machine)
 └── .github/workflows/ci.yml   Lint + tests, then a real bootstrap on an ephemeral macOS VM
 ```
