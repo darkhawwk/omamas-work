@@ -196,4 +196,3 @@ cask "zoom"
 mas "Adblock Plus", id: 1432731683
 mas "Bear", id: 1091189122
 mas "Pixelmator Pro", id: 1289583905
-npm "corepack"
