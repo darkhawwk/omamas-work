@@ -74,7 +74,6 @@ omamas/
 │   ├── macos/computer-name.conf this Mac's name
 │   ├── repos.conf               git repos to clone under ~/Work
 │   ├── secrets/                 templates with op:// references, rendered into $HOME
-│   ├── ssh/github_known_hosts   GitHub's SSH host keys, pinned for repo clones
 │   ├── macos/defaults.conf      `defaults` preferences
 │   ├── macos/dock.conf          Dock apps, in order
 │   ├── macos/default-apps.conf  which app opens which links and documents
@@ -412,7 +411,7 @@ cat install.sh | OMAMAS_REPO="file://$PWD" OMAMAS_REF=$(git branch --show-curren
 - **No check-then-swap gaps.** What root installs (the Touch ID PAM file, the Homebrew installer) stays in memory between being checked and being used, never in a temp file another process could replace. The `/tmp` marker for the Command Line Tools is created with `O_EXCL|O_NOFOLLOW`, which refuses a planted symlink.
 - **Config values can't become code.** Values reach AppleScript as arguments, never as script text; `repos.conf` lines must be exactly `host/owner/repo`; `directories.conf` paths must stay under `~`, with octal modes and no symlink anywhere along the way; `defaults.conf` takes preference domains, never file paths; secrets in shell files are single-quoted.
 - **Some config *is* code.** The Brewfile is Ruby, `configs/home/` dotfiles are shell, and `.config/mise/config.toml` can carry `[hooks]` that run on `mise install` and in every shell. Review changes to those like changes to a script.
-- **SSH host keys are pinned.** `45-repos` trusts only GitHub's published host keys (`configs/ssh/github_known_hosts`) or ones already in `~/.ssh/known_hosts`, never whatever answers first on a fresh Mac.
+- **SSH host keys are pinned.** GitHub's published host keys are linked to `~/.ssh/github_known_hosts`, and `~/.ssh/config` trusts them for github.com, so neither `45-repos` nor everyday `git`/`ssh` accepts whatever answers first on a fresh Mac. Other hosts must already be in `~/.ssh/known_hosts`.
 - **Logs and backups are private.** `~/.local/state/omamas` is kept at mode 700, and a repo URL is logged without any username or token in it.
 - **Backups need a long password.** New Claude backups require 12+ characters, because the image sits in iCloud, where a short password can be guessed offline. `OMAMAS_BACKUP_PASSWORD` is read and removed from the environment as soon as the script starts.
 - **Test hooks are off in real runs.** Overrides that choose which program runs, or what root writes to (`OMAMAS_SOCKETFILTERFW`, `OMAMAS_PAM_DIR`, …), only apply with `OMAMAS_TEST_MODE=1`, which the test suite sets.

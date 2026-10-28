@@ -65,7 +65,7 @@ check "shows the origin without its credentials" has_output "exists with origin 
 check "never logs the token" lacks_output "ghp_FAKEtoken123"
 
 echo "repos: host keys"
-FP=$(ssh-keygen -lf "$REPO/configs/ssh/github_known_hosts" | awk '{print $2}' | sort | tr '\n' ' ')
+FP=$(ssh-keygen -lf "$REPO/configs/home/.ssh/github_known_hosts" | awk '{print $2}' | sort | tr '\n' ' ')
 check "pinned keys match GitHub's published fingerprints" test "$FP" = "SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU SHA256:p2QAMXNIC1TJYWeIOttrVc98/R1BUFWu3/LiyKgUfQM SHA256:uNiVztksCsDhcc0u9e8BujQXVUpKZIDTMczCvj3tD2s "
 check "never accepts a new host key" bash -c "! grep -q accept-new '$REPO/scripts/45-repos.sh'"
 check "requires a known host key" grep -q 'StrictHostKeyChecking=yes' "$REPO/scripts/45-repos.sh"

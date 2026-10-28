@@ -7,7 +7,7 @@
 #
 # Access, tried in order for each repo:
 #   1. SSH: works once 1Password's SSH agent is on (Settings → Developer).
-#      Host keys are never accepted on first sight (configs/ssh/).
+#      Host keys are never accepted on first sight (configs/home/.ssh/github_known_hosts).
 #   2. HTTPS: uses your `gh auth login` if you have one; otherwise public only.
 # A repo nothing can reach yet (private, no access on a fresh Mac) is reported
 # with a follow-up rather than failing the run; re-run once access is set up:
@@ -29,7 +29,7 @@ export GIT_TERMINAL_PROMPT=0
 # other host must be in ~/.ssh/known_hosts. On a fresh Mac, accepting the
 # first key offered would trust whatever answers as github.com. An unknown
 # host falls through to HTTPS, where the certificate is checked.
-KNOWN_HOSTS="$OMAMAS_CONFIG_DIR/ssh/github_known_hosts"
+KNOWN_HOSTS="$OMAMAS_CONFIG_DIR/home/.ssh/github_known_hosts"
 GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=yes"
 GIT_SSH_COMMAND+=" -o $(printf '%q' "UserKnownHostsFile=\"$KNOWN_HOSTS\" \"$HOME/.ssh/known_hosts\"")"
 export GIT_SSH_COMMAND
