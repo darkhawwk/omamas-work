@@ -88,6 +88,7 @@ omamas/
 │   ├── 07-rosetta.sh            │
 │   ├── 10-homebrew.sh           │
 │   ├── 15-1password.sh          │
+│   ├── 17-security.sh           │
 │   ├── 20-packages.sh           │ modules: run in numeric order by setup.sh,
 │   ├── 30-directories.sh        │ each one also runs standalone
 │   ├── 40-dotfiles.sh           │
@@ -99,7 +100,6 @@ omamas/
 │   ├── 62-dock.sh               │
 │   ├── 64-default-apps.sh       │
 │   ├── 66-login-items.sh        │
-│   ├── 68-security.sh           │
 │   ├── 70-drift-check.sh        ┘
 │   └── drift-check.sh           weekly "still in sync?" report (run by the LaunchAgent)
 ├── assets/logo.png            Project logo
@@ -127,7 +127,7 @@ The whole script sits inside `main`, which is called on the last line, so a trun
 1. Takes a lock (`~/.local/state/omamas/setup.lock`) so two runs can't overlap.
 2. Mirrors all output to `~/.local/state/omamas/logs/setup-<run-id>.log` with ANSI colors stripped. `latest.log` always points at the newest log.
 3. Pre-flight: macOS ≥ `OMAMAS_MIN_MACOS` (default 14.0), not root, configs present, network reachable, disk space.
-4. Runs `sudo -v` once, but only if a selected module carries `# omamas: requires-sudo`. A background keep-alive then holds the sudo ticket until the run exits. `caffeinate` keeps the Mac awake. On a fresh Mac this is the only password prompt: `05-sudo-touchid` runs first and switches sudo to Touch ID (see below).
+4. Runs `sudo -v` once, but only if a selected module carries `# omamas: requires-sudo`. A background keep-alive then holds the sudo ticket until the last such module (`20-packages`) finishes, then drops it with `sudo -k`. `caffeinate` keeps the Mac awake. On a fresh Mac this is the only password prompt: `05-sudo-touchid` runs first and switches sudo to Touch ID (see below).
 5. Runs each module and records ok / FAILED and how long it took. A failing module doesn't stop the run unless you pass `--fail-fast`.
 6. Prints a summary, any follow-up notes (e.g. "log out to apply"), the log path and the backup path. The exit status is non-zero if any module failed.
 
@@ -166,7 +166,7 @@ cp -a ~/.local/state/omamas/backups/<run-id>/. ~/
 | `configs/macos/dock.conf` | one app path per line, in Dock order | `62-dock` |
 | `configs/macos/default-apps.conf` | `<bundle-id> <url-scheme>` or `<bundle-id> <type-id> <role>` | `64-default-apps` |
 | `configs/macos/login-items.conf` | `<app path> [hidden]` | `66-login-items` |
-| `configs/macos/security.conf` | `firewall on\|off`, `stealth on\|off`, `filevault check` | `68-security` |
+| `configs/macos/security.conf` | `firewall on\|off`, `stealth on\|off`, `filevault check` | `17-security` |
 
 In the `.conf` files, lines starting with `#` and blank lines are ignored, and a leading `~` expands to `$HOME`. Every manifest ships with its examples commented out, so a fresh clone changes nothing until you declare something.
 
@@ -208,7 +208,8 @@ OMAMAS_CAPTURE_DOMAINS="com.apple.dock com.googlecode.iterm2" ./capture.sh --onl
 export GITHUB_TOKEN="op://Private/GitHub/token"
 ```
 
-`48-secrets.sh` runs `op inject` on each template and writes the result to the same path under `$HOME` with mode 600. `~/.zshrc` sources `~/.zshrc.local` last.
+`48-secrets.sh` fills in each template and writes the result to the same path under `$HOME` with mode 600. `~/.zshrc` sources `~/.zshrc.local` last.
+- **Shell files are strict.** A template zsh or bash will source (`.zshrc.local`, `*.sh`, …) may contain only comments, blank lines and `export NAME="op://…"`. Each value is fetched with `op read` and written single-quoted, so a value containing a quote, `$` or backtick can never run as code. Other files go through `op inject`.
 - **Getting a reference:** in 1Password, open the item and use the field's menu → *Copy Secret Reference*.
 - **What gets logged:** only changed or unchanged, never a value. An older rendered file is backed up before it's replaced.
 - **When 1Password isn't ready:** if `op` isn't installed or the app's CLI integration is off, the run continues with a follow-up note instead of failing.
@@ -281,7 +282,7 @@ Anthropic doesn't document a migration path, so treat the desktop app's session 
 | `62-dock` | The Dock holds exactly the apps in `dock.conf`, in order, and no folders or stacks. | Yours is empty, so a new Mac's default apps and Downloads stack are removed. Delete `dock.conf` to leave the Dock alone. Rebuilds and restarts the Dock only when it differs. |
 | `64-default-apps` | Sets handlers with `duti` (Brave for web links and HTML, Obsidian for Markdown). | Reads each one first. macOS asks you to confirm a new default browser; until you do, it's a follow-up, not a success. |
 | `66-login-items` | Adds the apps in `login-items.conf` to Login Items through System Events. | Never removes any. If access to System Events is declined or the prompt isn't answered within 20 seconds, it leaves a follow-up instead of waiting. |
-| `68-security` | Sets the application firewall and stealth mode; reports FileVault. | With the firewall on, macOS asks once whether an unsigned program (a dev server, say) may accept incoming connections. FileVault is never turned on automatically: that needs you and produces a recovery key. |
+| `17-security` | Sets the application firewall and stealth mode; reports FileVault. | With the firewall on, macOS asks once whether an unsigned program (a dev server, say) may accept incoming connections. FileVault is never turned on automatically: that needs you and produces a recovery key. |
 
 ## Weekly drift check
 
@@ -405,7 +406,9 @@ cat install.sh | OMAMAS_REPO="file://$PWD" OMAMAS_REF=$(git branch --show-curren
 - **What runs on a new Mac is protected.** The one-liner installs `main` and runs it with `sudo`, so a ruleset on `main` blocks force-pushes and deletion and requires **signed commits**. Yours are signed with your 1Password key.
 - **No secrets in the repo.** Secret values never enter git: `configs/secrets/` holds 1Password references, and Claude backups are encrypted images outside the repo. GitHub secret scanning and push protection are on.
 - **CI can't write.** The workflow pins its token to read-only, even though the e2e job runs third-party installers. Actions are pinned to commit hashes, and Dependabot proposes updates.
-- **Config can't inject code.** Values reach AppleScript as arguments, never as script text, and `repos.conf` lines must be exactly `host/owner/repo`.
+- **sudo only as long as it's needed.** `setup.sh` asks once, up front, and keeps the ticket fresh only until `20-packages`, the last module that needs it. Then it drops the ticket (`sudo -k`), so repo clones, runtime downloads, secrets and everything after can't use `sudo` without asking.
+- **No check-then-swap gaps.** What root installs (the Touch ID PAM file, the Homebrew installer) stays in memory between being checked and being used, never in a temp file another process could replace. The `/tmp` marker for the Command Line Tools is created with `O_EXCL|O_NOFOLLOW`, which refuses a planted symlink.
+- **Config values can't become code.** Values reach AppleScript as arguments, never as script text; `repos.conf` lines must be exactly `host/owner/repo`; `directories.conf` paths must stay under `~` with octal modes; secrets in shell files are single-quoted. The Brewfile (Ruby) and `configs/home/` dotfiles (shell) *are* code, though: review changes to them like changes to a script.
 - **Test hooks are off in real runs.** Overrides that choose which program runs, or what root writes to (`OMAMAS_SOCKETFILTERFW`, `OMAMAS_PAM_DIR`, …), only apply with `OMAMAS_TEST_MODE=1`, which the test suite sets.
 
 ## Environment variables

@@ -110,6 +110,7 @@ main() {
 
   local password
   password=$(ask_password 0)
+  unset OMAMAS_BACKUP_PASSWORD # keep it out of every process started from here
   MOUNT=$(mktemp -d "${TMPDIR:-/tmp}/omamas-claude-restore.XXXXXX")
   add_exit_hook detach_image
   # Reading a not-yet-downloaded iCloud file downloads it first.

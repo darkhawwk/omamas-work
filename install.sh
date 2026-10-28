@@ -41,12 +41,17 @@ install_clt() {
   say "Installing Xcode Command Line Tools (needs your password)..."
 
   # Headless path: the placeholder file makes softwareupdate list the CLT.
-  # /tmp is shared: if something pre-planted a symlink here, a root `touch`
-  # would follow it and create a file wherever it points. Refuse that case, and
-  # use touch -h, which never follows a symlink, to close the race too.
+  # /tmp is shared: if something pre-planted a symlink here, a root write would
+  # follow it and create a file wherever it points. O_EXCL|O_NOFOLLOW refuses
+  # any existing path, symlink included, in the same call that creates the
+  # file, so there is no gap between check and use. (touch -h can't do this:
+  # it never creates a missing file.)
   local marker=/tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress label
-  [[ ! -L $marker ]] || fail "$marker is a symlink; refusing to touch it as root."
-  sudo touch -h "$marker"
+  if [[ -L $marker || ! -f $marker ]]; then
+    sudo /usr/bin/perl -MFcntl -e \
+      'sysopen(my $f, $ARGV[0], O_WRONLY|O_CREAT|O_EXCL|O_NOFOLLOW, 0644) or die "$ARGV[0]: $!\n"' \
+      "$marker" || fail "Could not create $marker safely; is a symlink in the way?"
+  fi
   label=$(softwareupdate -l 2>/dev/null |
     sed -n 's/^[[:space:]]*\* Label: \(Command Line Tools.*\)$/\1/p' | tail -n1)
   if [[ -n $label ]]; then

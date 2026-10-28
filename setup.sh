@@ -186,10 +186,15 @@ main() {
   preflight
 
   # Ask for privileges once, up front, so the run can proceed unattended —
-  # but only if a selected module declares that it may need them.
-  if grep -lq '^# omamas: requires-sudo' "${MODULES[@]}"; then
-    require_sudo
-  fi
+  # but only if a selected module declares that it may need them, and hold
+  # them only until the last such module has run. Everything after (repo
+  # clones, runtime downloads, secrets) can't use them.
+  local last_sudo=0 i=0 m
+  for m in "${MODULES[@]}"; do
+    i=$((i + 1))
+    if grep -q '^# omamas: requires-sudo' "$m"; then last_sudo=$i; fi
+  done
+  if ((last_sudo)); then require_sudo; fi
   # Keep the machine awake for as long as this process lives.
   caffeinate -dimsu -w $$ >/dev/null 2>&1 &
 
@@ -199,7 +204,8 @@ main() {
 
   RESULTS=()
   FAILED=0
-  local start=$SECONDS i=0 m name t0 status
+  local start=$SECONDS name t0 status
+  i=0
   for m in "${MODULES[@]}"; do
     i=$((i + 1))
     name=$(module_name "$m")
@@ -213,6 +219,7 @@ main() {
     # Homebrew can't change semantics between modules.
     if "$BASH" "$m"; then status=ok; else status=FAILED; FAILED=$((FAILED + 1)); fi
     RESULTS+=("$name|$status|$((SECONDS - t0))")
+    if ((i == last_sudo)); then end_sudo; fi
   done
 
   print_summary $((SECONDS - start))

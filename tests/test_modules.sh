@@ -19,6 +19,21 @@ touch "$FAKE_HOME/Blocked" && echo "~/Blocked" >>"$CFG/directories.conf"
 omamas scripts/30-directories.sh
 check "refuses to replace a file" has_output "exists but is not a directory"
 check "file left intact" test -f "$FAKE_HOME/Blocked"
+mkdir -p "$SANDBOX/elsewhere" && ln -s "$SANDBOX/elsewhere" "$FAKE_HOME/Linked"
+chmod 755 "$FAKE_HOME"
+cat >"$CFG/directories.conf" <<'CONF'
+~/.ssh/.. 777
+~/Odd    rwx
+/tmp/omamas-outside
+~/Linked 700
+CONF
+omamas scripts/30-directories.sh
+check "rejects .. segments" has_output "must be a path under ~"
+check "home folder mode untouched" test "$(stat -f '%Lp' "$FAKE_HOME")" = 755
+check "rejects non-octal modes" has_output "mode 'rwx' isn't octal"
+check "rejects paths outside ~" test ! -e /tmp/omamas-outside
+check "never chmods through a symlink" test "$(stat -f '%Lp' "$SANDBOX/elsewhere")" != 700
+check "reports the symlink" has_output "~/Linked is a symlink"
 
 echo "fonts"
 new_sandbox

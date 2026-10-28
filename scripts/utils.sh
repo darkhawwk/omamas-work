@@ -220,8 +220,8 @@ ensure_brew_shellenv() {
 
 # ─── Privileges ───────────────────────────────────────────────────────────────
 # Ask for sudo once, then keep the ticket fresh in the background until the
-# process that started the keep-alive exits. Child modules inherit
-# OMAMAS_SUDO_KEEPALIVE_PID and therefore never spawn a second loop.
+# process that started the keep-alive exits or calls end_sudo. Child modules
+# inherit OMAMAS_SUDO_KEEPALIVE_PID and therefore never spawn a second loop.
 require_sudo() {
   if is_dry_run; then
     log_info "Dry run: skipping sudo request."
@@ -251,8 +251,17 @@ __omamas_start_sudo_keepalive() {
   add_exit_hook __omamas_stop_sudo_keepalive
 }
 
+# Stop refreshing the ticket and drop it, so nothing run afterwards can use
+# `sudo -n` without asking. Also runs at exit of whoever started the loop.
 __omamas_stop_sudo_keepalive() {
   kill "${OMAMAS_SUDO_KEEPALIVE_PID:-}" 2>/dev/null || true
+  sudo -k 2>/dev/null || true
+}
+
+end_sudo() {
+  [[ -n ${OMAMAS_SUDO_KEEPALIVE_PID:-} ]] || return 0
+  __omamas_stop_sudo_keepalive
+  unset OMAMAS_SUDO_KEEPALIVE_PID
 }
 
 # ─── Backups ──────────────────────────────────────────────────────────────────

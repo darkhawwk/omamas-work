@@ -6,7 +6,9 @@
 #   ~/.ssh   700
 #
 # Creates missing directories and corrects modes. A non-directory occupying a
-# declared path is reported as an error, never removed.
+# declared path is reported as an error, never removed. Paths must stay under
+# ~ (no . or .. segments), modes must be plain octal, and a symlink is never
+# chmod'ed: a typo like `~/.ssh/.. 777` can't loosen your home folder.
 #
 # Usage: scripts/30-directories.sh [--dry-run] [--help]
 
@@ -22,6 +24,18 @@ main() {
   while read -r path mode; do
     path=${path/#\~/$HOME}
 
+    if [[ $path != "$HOME"/?* || /$path/ == */../* || /$path/ == */./* ]]; then
+      log_error "$path: must be a path under ~ without . or .. segments"
+      continue
+    fi
+    if [[ -n $mode && ! $mode =~ ^0?[0-7]{3}$ ]]; then
+      log_error "$(tildify "$path"): mode '$mode' isn't octal like 700"
+      continue
+    fi
+    if [[ -L $path ]]; then
+      log_error "$(tildify "$path") is a symlink; not changed"
+      continue
+    fi
     if [[ -e $path && ! -d $path ]]; then
       log_error "$(tildify "$path") exists but is not a directory"
       continue

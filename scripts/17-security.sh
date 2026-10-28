@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
-# 68-security.sh — Apply the baseline in configs/macos/security.conf.
+# 17-security.sh — Apply the baseline in configs/macos/security.conf.
 #
 #   firewall   on|off   macOS application firewall
 #   stealth    on|off   ignore pings and probes to closed ports
 #   filevault  check    report disk encryption; turning it on needs you
 #                       (and produces a recovery key), so it's never automated
 #
-# Usage: scripts/68-security.sh [--dry-run] [--help]
+# Numbered before 20-packages on purpose: it's the last module that needs
+# sudo, and setup.sh drops the sudo ticket after packages, so the steps that
+# follow (repo clones, runtime downloads, secrets) run without root access.
+#
+# Usage: scripts/17-security.sh [--dry-run] [--help]
 
 # omamas: requires-sudo
 

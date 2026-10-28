@@ -24,10 +24,8 @@ TARGET="$PAM_DIR/sudo_local"
 TEMPLATE="$PAM_DIR/sudo_local.template"
 TID_ACTIVE='^[[:space:]]*auth[[:space:]]+sufficient[[:space:]]+pam_tid\.so'
 TID_COMMENTED='^[[:space:]]*#[[:space:]]*(auth[[:space:]]+sufficient[[:space:]]+pam_tid\.so.*)$'
+TID_EXACT='^[[:space:]]*#?[[:space:]]*auth[[:space:]]+sufficient[[:space:]]+pam_tid\.so[[:space:]]*$'
 TID_LINE='auth       sufficient     pam_tid.so'
-STAGED=""
-
-cleanup() { [[ -z $STAGED ]] || rm -f "$STAGED"; }
 
 # Elevate only when the PAM directory requires it.
 as_root() { if [[ -w $PAM_DIR ]]; then "$@"; else sudo "$@"; fi; }
@@ -43,12 +41,13 @@ render() {
   fi
 }
 
-# The staged file may differ from BASE only by enabling pam_tid. Anything else
-# means render() misbehaved, and a broken PAM file can lock you out of sudo.
-verify_staged() {
-  local base=$1
-  grep -Eq "$TID_ACTIVE" "$STAGED" || return 1
-  diff <(grep -Ev 'pam_tid\.so' "$base") <(grep -Ev 'pam_tid\.so' "$STAGED") >/dev/null
+# verify BASE TEXT: TEXT may differ from BASE only by enabling pam_tid.
+# Anything else means render() misbehaved, and a broken PAM file can lock you
+# out of sudo. Only exact pam_tid lines are set aside before comparing, never
+# every line that merely mentions pam_tid.so (`pam_permit.so # pam_tid.so`).
+verify() {
+  grep -Eq "$TID_ACTIVE" <<<"$2" || return 1
+  diff <(grep -Ev "$TID_EXACT" "$1") <(grep -Ev "$TID_EXACT" <<<"$2") >/dev/null
 }
 
 main() {
@@ -72,10 +71,11 @@ main() {
     return 0
   fi
 
-  STAGED=$(mktemp -t omamas-sudo_local)
-  add_exit_hook cleanup
-  render "$base" >"$STAGED"
-  verify_staged "$base" || die "Refusing to write $TARGET: rendered file failed verification"
+  # The rendered file stays in memory until root writes it: a temp file you
+  # own could be swapped between this check and the install.
+  local rendered
+  rendered=$(render "$base")
+  verify "$base" "$rendered" || die "Refusing to write $TARGET: rendered file failed verification"
 
   if is_dry_run; then
     log_dry "enable Touch ID for sudo in $TARGET (from ${base##*/})"
@@ -89,8 +89,10 @@ main() {
   fi
 
   # Stage beside the target, then rename: sudo never reads a half-written file.
-  # `install` run as root also yields Apple's ownership (root:wheel, 0444).
-  if as_root install -m 444 "$STAGED" "$TARGET.omamas-new" &&
+  # Written by root into /etc/pam.d, it gets Apple's ownership (root:wheel)
+  # and, through the umask, Apple's mode (0444).
+  if printf '%s\n' "$rendered" |
+    as_root /bin/sh -c 'rm -f "$1" && umask 222 && cat >"$1"' sh "$TARGET.omamas-new" &&
     as_root mv -f "$TARGET.omamas-new" "$TARGET"; then
     log_success "Touch ID enabled for sudo ($TARGET)"
   else

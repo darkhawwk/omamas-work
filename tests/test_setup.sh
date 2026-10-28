@@ -6,7 +6,7 @@ echo "setup.sh"
 new_sandbox
 echo x >"$CFG/home/.zshrc"
 omamas setup.sh --list
-check "--list prints modules in order" test "$(printf '%s\n' "$OUT" | cut -f1 | tr '\n' ' ')" = "computer-name sudo-touchid rosetta homebrew 1password packages directories dotfiles repos runtimes secrets fonts macos-defaults dock default-apps login-items security drift-check "
+check "--list prints modules in order" test "$(printf '%s\n' "$OUT" | cut -f1 | tr '\n' ' ')" = "computer-name sudo-touchid rosetta homebrew 1password security packages directories dotfiles repos runtimes secrets fonts macos-defaults dock default-apps login-items drift-check "
 omamas setup.sh --only bogus
 check "unknown module rejected" rc_is 1
 omamas setup.sh --dry-run --only directories --only dotfiles
@@ -28,6 +28,26 @@ check "reports backup location" has_output "Backups: ~/.local/state/omamas/backu
 check "does not ask for sudo" lacks_output "Administrator privileges"
 omamas setup.sh --only dotfiles
 check "re-run is a no-op" has_output "0 changed, 1 unchanged"
+
+echo "setup.sh: sudo window"
+# A sudo shim logs calls; the real sudo is never touched.
+mkdir -p "$SANDBOX/shims"
+printf '#!/bin/bash\necho "$*" >>"%s/sudo.log"\n' "$SANDBOX" >"$SANDBOX/shims/sudo"
+chmod +x "$SANDBOX/shims/sudo"
+OUT=$(PATH="$SANDBOX/shims:$PATH" HOME="$FAKE_HOME" OMAMAS_COLOR=0 "$TEST_BASH" -c '
+  source "$1/scripts/utils.sh"
+  require_sudo
+  pid=$OMAMAS_SUDO_KEEPALIVE_PID
+  end_sudo
+  sleep 0.2
+  kill -0 "$pid" 2>/dev/null && echo "keepalive still running"
+  [[ -z ${OMAMAS_SUDO_KEEPALIVE_PID:-} ]] || echo "pid still exported"
+  echo done' _ "$REPO" 2>&1)
+check "end_sudo stops the keep-alive" has_output "done"
+check "end_sudo leaves nothing running" lacks_output "still"
+check "end_sudo drops the ticket" grep -qx -- -k "$SANDBOX/sudo.log"
+last=$(grep -l '^# omamas: requires-sudo' "$REPO"/scripts/[0-9][0-9]-*.sh | tail -n1)
+check "packages is the last module holding sudo" test "${last##*/}" = 20-packages.sh
 
 echo "setup.sh: failing module"
 mkdir -p "$CFG/home/.config/x" && echo x >"$CFG/home/.config/x/rc"

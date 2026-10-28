@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 62-dock, 64-default-apps, 66-login-items and 68-security. dockutil, duti,
+# 62-dock, 64-default-apps, 66-login-items and 17-security. dockutil, duti,
 # osascript, socketfilterfw, fdesetup, sudo and killall are all shims, so the
 # real Dock, defaults, login items and firewall are never touched.
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
@@ -158,30 +158,30 @@ check "and leaves a follow-up" has_output "./setup.sh --only login-items"
 echo "security"
 new_mac
 printf 'firewall on\nstealth on\nfilevault check\n' >"$CFG/macos/security.conf"
-omamas scripts/68-security.sh --dry-run
+omamas scripts/17-security.sh --dry-run
 check "reads a disabled firewall as off" has_output "firewall: off → on"
-omamas scripts/68-security.sh
+omamas scripts/17-security.sh
 check "exits 0" rc_is 0
 check "turns the firewall on" test "$(cat "$ST/fw")" = on
 check "turns stealth mode on" test "$(cat "$ST/stealth")" = on
 check "reports FileVault" has_output "FileVault on"
-omamas scripts/68-security.sh
+omamas scripts/17-security.sh
 check "second run changes nothing" has_output "0 changed, 3 unchanged"
 echo Off >"$ST/fv"
-omamas scripts/68-security.sh
+omamas scripts/17-security.sh
 check "FileVault off is a warning with a follow-up" has_output "Turn on FileVault"
 echo "security: overrides only in test mode"
 new_mac
 printf 'firewall on\n' >"$CFG/macos/security.conf"
 printf '#!/bin/bash\ntouch %s/planted-ran\necho "Firewall is enabled. (State = 1)"\n' "$SANDBOX" >"$SANDBOX/planted"
 chmod +x "$SANDBOX/planted"
-EXTRA_ENV="$EXTRA_ENV OMAMAS_SOCKETFILTERFW=$SANDBOX/planted OMAMAS_TEST_MODE=0" omamas scripts/68-security.sh --dry-run
+EXTRA_ENV="$EXTRA_ENV OMAMAS_SOCKETFILTERFW=$SANDBOX/planted OMAMAS_TEST_MODE=0" omamas scripts/17-security.sh --dry-run
 check "a planted override is ignored outside test mode" test ! -e "$SANDBOX/planted-ran"
-EXTRA_ENV="$EXTRA_ENV OMAMAS_SOCKETFILTERFW=$SANDBOX/planted" omamas scripts/68-security.sh --dry-run
+EXTRA_ENV="$EXTRA_ENV OMAMAS_SOCKETFILTERFW=$SANDBOX/planted" omamas scripts/17-security.sh --dry-run
 check "and honored in test mode" test -e "$SANDBOX/planted-ran"
 
 printf 'firewall maybe\n' >"$CFG/macos/security.conf"
-omamas scripts/68-security.sh
+omamas scripts/17-security.sh
 check "rejects values other than on/off" has_output "firewall must be on or off"
 
 finish

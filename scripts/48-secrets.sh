@@ -7,6 +7,13 @@
 # in and the result is written with mode 600. Values never enter git, logs or
 # backups' names; only "changed" or "unchanged" is reported.
 #
+# Shell files (.zshrc*, .zshenv*, .zprofile*, .bashrc*, .profile*, *.sh,
+# *.zsh) skip `op inject`: it pastes values unescaped, so a value holding a
+# quote, $ or backtick would run as code every time the shell sources the
+# file. They may contain only comments, blank lines and
+#   export NAME="op://<vault>/<item>/<field>"
+# Each value is fetched with `op read` and written single-quoted.
+#
 #   No references in a template   → SKIP (nothing to render yet)
 #   Rendered output already there  → SKIP
 #   Differs or missing             → back up the old file, write the new one
@@ -29,6 +36,44 @@ cleanup_render() {
   # Rendered secrets live here briefly; never leave them behind.
   [[ -n $RENDER_DIR && $RENDER_DIR == */omamas-secrets.* ]] && rm -rf -- "$RENDER_DIR"
   return 0
+}
+
+SHELL_EXPORT='^export ([A-Za-z_][A-Za-z0-9_]*)="(op://[^"]+)"$'
+BAD_LINE=""
+
+is_shell_file() {
+  case ${1##*/} in
+    .zshrc* | .zshenv* | .zprofile* | .bashrc* | .bash_profile* | .profile* | *.sh | *.zsh) return 0 ;;
+  esac
+  return 1
+}
+
+# shell_quote VALUE: VALUE in single quotes, safe for any shell to source.
+shell_quote() {
+  local sq="'\\''"
+  printf "'%s'" "${1//\'/$sq}"
+}
+
+# render_shell TEMPLATE OUT. Returns 3 (line number in BAD_LINE) on a line
+# that isn't allowed, or op's exit code. The value stays in a variable:
+# never on a command line, never in a log.
+render_shell() {
+  local line name value n=0 rc
+  while IFS= read -r line || [[ -n $line ]]; do
+    n=$((n + 1))
+    if [[ -z ${line//[[:space:]]/} || $line =~ ^[[:space:]]*# ]]; then
+      printf '%s\n' "$line"
+    elif [[ $line =~ $SHELL_EXPORT ]]; then
+      name=${BASH_REMATCH[1]}
+      rc=0
+      value=$(run_with_timeout "$TIMEOUT" op read --no-newline "${BASH_REMATCH[2]}") || rc=$?
+      ((rc == 0)) || return "$rc"
+      printf 'export %s=%s\n' "$name" "$(shell_quote "$value")"
+    else
+      BAD_LINE=$n
+      return 3
+    fi
+  done <"$1" >"$2"
 }
 
 # Number of op:// references outside comment lines.
@@ -75,8 +120,16 @@ main() {
     rendered="$RENDER_DIR/${rel//\//_}"
     # op's own errors name references, never values.
     rc=0
-    run_with_timeout "$TIMEOUT" op inject --force --in-file "$src" --out-file "$rendered" >/dev/null || rc=$?
-    if ((rc == 142)); then
+    if is_shell_file "$src"; then
+      render_shell "$src" "$rendered" || rc=$?
+    else
+      run_with_timeout "$TIMEOUT" op inject --force --in-file "$src" --out-file "$rendered" >/dev/null || rc=$?
+    fi
+    if ((rc == 3)); then
+      # Never echo the line itself: it may be a value pasted by mistake.
+      log_error "$(tildify "$src") line $BAD_LINE: only comments and export NAME=\"op://…\" are allowed; not rendered"
+      continue
+    elif ((rc == 142)); then
       log_warn "1Password didn't answer within ${TIMEOUT}s (approval prompt unanswered?)"
       unavailable=1
       continue

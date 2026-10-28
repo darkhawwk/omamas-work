@@ -13,9 +13,6 @@
 source "$(dirname "${BASH_SOURCE[0]}")/utils.sh"
 
 INSTALLER_URL="https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh"
-INSTALLER_FILE=""
-
-cleanup_installer() { [[ -z $INSTALLER_FILE ]] || rm -f "$INSTALLER_FILE"; }
 
 install_homebrew() {
   if is_dry_run; then
@@ -25,14 +22,15 @@ install_homebrew() {
   require_sudo
 
   # Download fully before executing, so a dropped connection can never run a
-  # truncated installer.
-  INSTALLER_FILE=$(mktemp -t omamas-brew-install) || return 1
-  add_exit_hook cleanup_installer
-  curl -fsSL "$INSTALLER_URL" -o "$INSTALLER_FILE" || {
+  # truncated installer. The script stays in memory, Homebrew's documented
+  # `bash -c "$(curl …)"` form: a temp file you own could be swapped between
+  # download and run.
+  local installer
+  installer=$(curl -fsSL "$INSTALLER_URL") || {
     log_error "Failed to download the Homebrew installer"
     return 1
   }
-  NONINTERACTIVE=1 /bin/bash "$INSTALLER_FILE" || return 1
+  NONINTERACTIVE=1 /bin/bash -c "$installer" || return 1
 
   ensure_brew_shellenv || {
     log_error "Homebrew installed but brew was not found in a standard prefix"

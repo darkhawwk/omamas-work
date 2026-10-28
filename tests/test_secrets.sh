@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Behavior of 48-secrets.sh. `op` is a shim that resolves op://v/item/field to
-# "s3cr3t-<field>"; nothing talks to 1Password.
+# "s3cr3t-<field>" (field "evil" resolves to shell code); nothing talks to
+# 1Password.
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 M=scripts/48-secrets.sh
 
@@ -21,6 +22,13 @@ TPL
 echo "\$*" >>"$SANDBOX/op.log"
 [[ "$1" == locked ]] && { echo "[ERROR] account is not signed in" >&2; exit 1; }
 [[ "$1" == waiting ]] && sleep 30 # approval prompt nobody answers
+if [[ \$1 == read ]]; then
+  field=\${@: -1}
+  field=\${field##*/}
+  if [[ \$field == evil ]]; then printf '%s' 'x"; touch $SANDBOX/PWNED; echo \$(touch $SANDBOX/PWNED) \` it'"'"'s'
+  else printf 's3cr3t-%s' "\$field"; fi
+  exit 0
+fi
 while [[ \$# -gt 0 ]]; do
   case \$1 in --in-file) in=\$2; shift ;; --out-file) out=\$2; shift ;; esac
   shift
@@ -39,7 +47,8 @@ check "dry run counts references, not comments" has_output "render ~/.zshrc.loca
 check "dry run never calls op" test ! -e "$SANDBOX/op.log"
 omamas $M
 check "exits 0" rc_is 0
-check "fills in values" grep -qx 'export API_TOKEN="s3cr3t-token"' "$FAKE_HOME/.zshrc.local"
+check "fills in values, single-quoted" grep -qx "export API_TOKEN='s3cr3t-token'" "$FAKE_HOME/.zshrc.local"
+check "keeps comments" grep -qx '# export UNUSED="op://Private/Commented/out"' "$FAKE_HOME/.zshrc.local"
 check "renders nested paths too" grep -qx 'auth: s3cr3t-password' "$FAKE_HOME/.config/tool/hosts.yml"
 check "writes mode 600" test "$(stat -f %Lp "$FAKE_HOME/.zshrc.local")" = 600
 check "never prints a secret value" lacks_output "s3cr3t"
@@ -53,6 +62,22 @@ omamas $M
 check "re-renders the changed file" has_output "Rendered ~/.zshrc.local (3 secrets)"
 check "backs up the previous version" test -f "$(find "$(backups_dir)" -name .zshrc.local | head -n1)"
 check "backup is not world-readable either" test "$(stat -f %Lp "$(find "$(backups_dir)" -name .zshrc.local | head -n1)")" = 600
+
+echo "secrets: shell files can't be turned into code"
+new_mac ok
+printf 'export EVIL="op://Private/Trap/evil"\n' >>"$CFG/secrets/.zshrc.local"
+omamas $M
+check "renders a hostile value" rc_is 0
+zsh -fc "source '$FAKE_HOME/.zshrc.local'; print -r -- \$EVIL" >"$SANDBOX/evil.out" 2>&1
+check "sourcing it runs nothing" test ! -e "$SANDBOX/PWNED"
+check "the value survives byte for byte" grep -Fqx 'x"; touch '"$SANDBOX"'/PWNED; echo $(touch '"$SANDBOX"'/PWNED) ` it'"'"'s' "$SANDBOX/evil.out"
+new_mac ok
+printf 'echo hi; export X="op://Private/X/y"\n' >>"$CFG/secrets/.zshrc.local"
+omamas $M
+check "refuses any other shell line" has_output ".zshrc.local line 4: only comments and export"
+check "writes nothing for that file" test ! -e "$FAKE_HOME/.zshrc.local"
+check "still renders the other files" grep -qx 'auth: s3cr3t-password' "$FAKE_HOME/.config/tool/hosts.yml"
+check "fails the module" rc_is 1
 
 echo "secrets: 1Password not ready"
 new_mac locked
