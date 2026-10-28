@@ -24,6 +24,7 @@ SH
 #!/bin/bash
 if [[ \$1 == -d ]]; then awk -v t="\$2" '\$1 == t { print \$2 }' "$ST/handlers"; exit; fi
 # -s ID TARGET [ROLE]; browser changes stay pending until "confirmed".
+[[ -e "$ST/duti-hangs" && (\$3 == http || \$3 == https) ]] && sleep 30
 [[ -e "$ST/no-confirm" && (\$3 == http || \$3 == https) ]] && exit 0
 grep -v "^\$3 " "$ST/handlers" >"$ST/h.tmp"; echo "\$3 \$2" >>"$ST/h.tmp"; mv "$ST/h.tmp" "$ST/handlers"
 SH
@@ -94,6 +95,16 @@ touch "$ST/no-confirm"
 omamas scripts/64-default-apps.sh
 check "unconfirmed browser change isn't reported as done" lacks_output "http → com.brave.Browser (was"
 check "asks you to confirm macOS's dialog" has_output "Confirm the macOS dialog(s) for http"
+
+new_mac
+printf 'http com.apple.Safari\n' >"$ST/handlers"
+printf 'com.brave.Browser http\n' >"$CFG/macos/default-apps.conf"
+touch "$ST/duti-hangs"
+start=$SECONDS
+omamas scripts/64-default-apps.sh
+check "a dialog nobody answers times out" test $((SECONDS - start)) -lt 10
+check "and becomes a follow-up, not a failure" has_output "macOS is waiting for you to confirm com.brave.Browser"
+check "exits 0" rc_is 0
 
 echo "login items"
 new_mac

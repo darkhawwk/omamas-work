@@ -21,6 +21,8 @@
 source "$(dirname "${BASH_SOURCE[0]}")/utils.sh"
 
 SOURCE_DIR="$OMAMAS_CONFIG_DIR/secrets"
+# op waits while 1Password asks you to approve (Touch ID); don't wait forever.
+TIMEOUT="${OMAMAS_PROMPT_TIMEOUT:-120}"
 RENDER_DIR=""
 
 cleanup_render() {
@@ -47,7 +49,7 @@ main() {
   chmod 700 "$RENDER_DIR"
   add_exit_hook cleanup_render
 
-  local src rel dst refs rendered unavailable=0
+  local src rel dst refs rendered rc unavailable=0
   while IFS= read -r -d '' src; do
     rel=${src#"$SOURCE_DIR"/}
     dst="$HOME/$rel"
@@ -72,7 +74,13 @@ main() {
 
     rendered="$RENDER_DIR/${rel//\//_}"
     # op's own errors name references, never values.
-    if ! op inject --force --in-file "$src" --out-file "$rendered" >/dev/null; then
+    rc=0
+    run_with_timeout "$TIMEOUT" op inject --force --in-file "$src" --out-file "$rendered" >/dev/null || rc=$?
+    if ((rc == 142)); then
+      log_warn "1Password didn't answer within ${TIMEOUT}s (approval prompt unanswered?)"
+      unavailable=1
+      continue
+    elif ((rc != 0)); then
       log_warn "Couldn't read secrets from 1Password for $(tildify "$dst")"
       unavailable=1
       continue

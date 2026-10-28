@@ -29,12 +29,17 @@ SH
   cat >"$SHIMS/open" <<SH
 #!/bin/bash
 echo "\$*" >>"$SANDBOX/open.log"
+# Like macOS's first-launch prompt for a downloaded app: nobody answers.
+[[ -e "$SANDBOX/open-hangs" ]] && sleep 30
+exit 0
 SH
   chmod +x "$SHIMS"/*
   export EXTRA_ENV="PATH=$SHIMS:$PATH OMAMAS_1PASSWORD_APP=$APP"
 }
 
 installs() { grep -c '^install' "$SANDBOX/brew.log" 2>/dev/null || true; }
+# `open` runs detached, so give it a moment to record the call.
+opened() { local i; for i in 1 2 3 4 5 6 7 8 9 10; do grep -Fqx "$APP" "$SANDBOX/open.log" 2>/dev/null && return 0; sleep 0.3; done; return 1; }
 
 echo "1password: missing"
 new_mac missing
@@ -44,12 +49,21 @@ check "dry run installs nothing" test "$(installs)" = 0
 omamas $M
 check "exits 0" rc_is 0
 check "installs the cask" grep -Fqx "install --cask 1password" "$SANDBOX/brew.log"
-check "opens the app for sign-in" grep -Fqx "$APP" "$SANDBOX/open.log"
+check "opens the app for sign-in" opened
 check "says setup continues" has_output "Setup continues meanwhile"
 check "leaves a follow-up about the SSH agent" has_output "turn on its SSH agent"
 omamas $M
 check "second run changes nothing" has_output "0 changed, 1 unchanged"
 check "opens the app only once" test "$(wc -l <"$SANDBOX/open.log" | tr -d ' ')" = 1
+
+echo "1password: first-launch prompt nobody answers"
+new_mac missing
+touch "$SANDBOX/open-hangs"
+start=$SECONDS
+omamas $M
+check "doesn't wait for the prompt" test $((SECONDS - start)) -lt 10
+check "still opens the app" opened
+check "exits 0" rc_is 0
 
 echo "1password: installed by hand"
 new_mac manual

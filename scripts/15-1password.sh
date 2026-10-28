@@ -18,13 +18,13 @@ source "$(dirname "${BASH_SOURCE[0]}")/utils.sh"
 CASK=1password
 APP="${OMAMAS_1PASSWORD_APP:-/Applications/1Password.app}" # overridable for tests
 
-# Open the app without waiting, and leave a follow-up for the run summary.
+# Open the app and leave a follow-up for the run summary. `open` is detached:
+# on a freshly downloaded app macOS first asks "…downloaded from the
+# Internet. Are you sure you want to open it?", and `open` waits for that
+# answer, which would stall the whole run until someone clicks.
 open_for_sign_in() {
-  if open "$APP"; then
-    log_info "1Password is open: sign in now. Setup continues meanwhile."
-  else
-    log_warn "Could not open 1Password; open it yourself to sign in."
-  fi
+  (open "$APP" >/dev/null 2>&1 &)
+  log_info "Opening 1Password: confirm macOS's prompt if it asks, then sign in. Setup continues meanwhile."
   add_note "Sign in to 1Password and turn on its SSH agent (Settings → Developer) so git over SSH works."
 }
 

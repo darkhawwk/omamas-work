@@ -14,6 +14,9 @@
 source "$(dirname "${BASH_SOURCE[0]}")/utils.sh"
 
 MANIFEST="$OMAMAS_CONFIG_DIR/macos/default-apps.conf"
+# A new default browser makes macOS show a confirmation dialog, and duti waits
+# for the answer; past this many seconds it becomes a follow-up instead.
+TIMEOUT="${OMAMAS_PROMPT_TIMEOUT:-30}"
 
 # Bundle id currently handling TARGET (empty if none).
 handler_for() { duti -d "$1" 2>/dev/null | head -n1 || true; }
@@ -29,7 +32,7 @@ main() {
   ensure_brew_shellenv || true
   require_cmd duti "It's in the Brewfile; run scripts/20-packages.sh first."
 
-  local id target role have unconfirmed=""
+  local id target role have rc unconfirmed=""
   while read -r id target role; do
     have=$(handler_for "$target")
     if [[ $(lower "$have") == "$(lower "$id")" ]]; then
@@ -40,7 +43,13 @@ main() {
       log_dry "$target: ${have:-none} → $id"
       continue
     fi
-    if ! duti -s "$id" "$target" ${role:+"$role"} 2>/dev/null; then
+    rc=0
+    run_with_timeout "$TIMEOUT" duti -s "$id" "$target" ${role:+"$role"} 2>/dev/null || rc=$?
+    if ((rc == 142)); then
+      log_warn "$target: macOS is waiting for you to confirm $id"
+      unconfirmed+="$target "
+      continue
+    elif ((rc != 0)); then
       log_error "Couldn't set $target → $id (is the app installed?)"
       continue
     fi

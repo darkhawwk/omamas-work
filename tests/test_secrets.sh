@@ -20,6 +20,7 @@ TPL
 #!/bin/bash
 echo "\$*" >>"$SANDBOX/op.log"
 [[ "$1" == locked ]] && { echo "[ERROR] account is not signed in" >&2; exit 1; }
+[[ "$1" == waiting ]] && sleep 30 # approval prompt nobody answers
 while [[ \$# -gt 0 ]]; do
   case \$1 in --in-file) in=\$2; shift ;; --out-file) out=\$2; shift ;; esac
   shift
@@ -63,6 +64,16 @@ check "writes nothing" test ! -e "$FAKE_HOME/.zshrc.local"
 new_mac missing
 omamas $M
 check "copes without the op CLI" has_output "1Password CLI (op) not installed"
+
+echo "secrets: approval nobody answers"
+new_mac waiting
+EXTRA_ENV="$EXTRA_ENV OMAMAS_PROMPT_TIMEOUT=2"
+start=$SECONDS
+omamas $M
+check "times out instead of waiting" test $((SECONDS - start)) -lt 10
+check "says why" has_output "1Password didn't answer within 2s"
+check "doesn't fail the run" rc_is 0
+check "writes nothing" test ! -e "$FAKE_HOME/.zshrc.local"
 
 echo "secrets: nothing to render"
 new_mac ok
