@@ -7,7 +7,15 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 new_mac() {
   new_sandbox
   SHIMS="$SANDBOX/shims" APPS="$SANDBOX/Applications" ST="$SANDBOX/state"
-  mkdir -p "$SHIMS" "$CFG/macos" "$ST" "$APPS/Zed.app" "$APPS/Brave Browser.app" "$APPS/Rectangle.app"
+  mkdir -p "$SHIMS" "$CFG/macos" "$ST" "$APPS/Zed.app" "$APPS/Brave Browser.app/Contents" "$APPS/Rectangle.app" "$APPS/Obsidian.app/Contents"
+  defaults write "$APPS/Brave Browser.app/Contents/Info" CFBundleIdentifier -string com.brave.Browser
+  defaults write "$APPS/Obsidian.app/Contents/Info" CFBundleIdentifier -string md.obsidian
+  cat >"$SHIMS/lsregister" <<SH
+#!/bin/bash
+echo "\$2" >>"$ST/lsregister.log"
+id=\$(defaults read "\$2/Contents/Info" CFBundleIdentifier | tr '[:upper:]' '[:lower:]')
+touch "$ST/registered-\$id"
+SH
   : >"$ST/dock" && : >"$ST/login" && : >"$ST/handlers"
   printf '#!/bin/bash\necho "killall $*" >>"%s/killed"\n' "$SANDBOX" >"$SHIMS/killall"
   printf '#!/bin/bash\nwhile [[ $1 == -* ]]; do shift; done\n[[ $# -eq 0 ]] && exit 0\nexec "$@"\n' >"$SHIMS/sudo"
@@ -24,8 +32,13 @@ SH
 #!/bin/bash
 if [[ \$1 == -d ]]; then awk -v t="\$2" '\$1 == t { print \$2 }' "$ST/handlers"; exit; fi
 # -s ID TARGET [ROLE]; browser changes stay pending until "confirmed".
+id=\$(tr '[:upper:]' '[:lower:]' <<<"\$2")
+# Like macOS: an app Launch Services hasn't registered yet can't become a
+# default (silently for document types, an error for link types).
+if [[ \$id != com.apple.safari && ! -e "$ST/registered-\$id" ]]; then [[ -n \$4 ]] && exit 0 || exit 1; fi
 [[ -e "$ST/duti-hangs" && (\$3 == http || \$3 == https) ]] && sleep 30
-[[ -e "$ST/no-confirm" && (\$3 == http || \$3 == https) ]] && exit 0
+[[ -e "$ST/no-confirm" && \$3 == https ]] && exit 1
+[[ -e "$ST/no-confirm" && \$3 == http ]] && exit 0
 grep -v "^\$3 " "$ST/handlers" >"$ST/h.tmp"; echo "\$3 \$2" >>"$ST/h.tmp"; mv "$ST/h.tmp" "$ST/handlers"
 SH
   cat >"$SHIMS/osascript" <<SH
@@ -49,7 +62,7 @@ esac
 SH
   printf '#!/bin/bash\necho "FileVault is $(cat %s/fv 2>/dev/null || echo On)."\n' "$ST" >"$SHIMS/fdesetup"
   chmod +x "$SHIMS"/*
-  export EXTRA_ENV="PATH=$SHIMS:/usr/bin:/bin:/usr/sbin OMAMAS_SOCKETFILTERFW=$SHIMS/socketfilterfw OMAMAS_PROMPT_TIMEOUT=2"
+  export EXTRA_ENV="PATH=$SHIMS:/usr/bin:/bin:/usr/sbin OMAMAS_SOCKETFILTERFW=$SHIMS/socketfilterfw OMAMAS_PROMPT_TIMEOUT=2 OMAMAS_LSREGISTER=$SHIMS/lsregister OMAMAS_APPLICATIONS_DIR=$APPS"
 }
 dock_apps() { awk -F'\t' '$1 == "persistentApps" { print $2 }' "$ST/dock" | paste -sd '|' -; }
 
@@ -86,15 +99,24 @@ check "sets a URL scheme" grep -qx "http com.brave.Browser" "$ST/handlers"
 check "sets a document type" grep -qx "net.daringfireball.markdown md.obsidian" "$ST/handlers"
 check "logs the previous handler" has_output "http → com.brave.Browser (was: com.apple.Safari)"
 check "compares bundle ids case-insensitively" has_output "public.html → COM.APPLE.SAFARI"
+check "registers freshly installed apps first" grep -Fqx "$APPS/Obsidian.app" "$ST/lsregister.log"
+check "registers each app once" test "$(grep -c . "$ST/lsregister.log")" = 2
 omamas scripts/64-default-apps.sh
 check "second run changes nothing" has_output "0 changed, 3 unchanged"
 new_mac
-printf 'http com.apple.Safari\n' >"$ST/handlers"
-printf 'com.brave.Browser http\n' >"$CFG/macos/default-apps.conf"
+printf 'http com.apple.Safari\nhttps com.apple.Safari\n' >"$ST/handlers"
+printf 'com.brave.Browser http\ncom.brave.Browser https\n' >"$CFG/macos/default-apps.conf"
 touch "$ST/no-confirm"
 omamas scripts/64-default-apps.sh
 check "unconfirmed browser change isn't reported as done" lacks_output "http → com.brave.Browser (was"
-check "asks you to confirm macOS's dialog" has_output "Confirm the macOS dialog(s) for http"
+check "https erroring while the dialog is open is pending, not a failure" rc_is 0
+check "asks you to confirm macOS's dialog" has_output "Default apps not applied yet: http https"
+
+new_mac
+printf 'com.example.Missing public.html all\n' >"$CFG/macos/default-apps.conf"
+omamas scripts/64-default-apps.sh
+check "an app that isn't installed is an error" has_output "no app with bundle id com.example.Missing is installed"
+check "and fails the module" rc_is 1
 
 new_mac
 printf 'http com.apple.Safari\n' >"$ST/handlers"
@@ -103,7 +125,7 @@ touch "$ST/duti-hangs"
 start=$SECONDS
 omamas scripts/64-default-apps.sh
 check "a dialog nobody answers times out" test $((SECONDS - start)) -lt 10
-check "and becomes a follow-up, not a failure" has_output "macOS is waiting for you to confirm com.brave.Browser"
+check "and becomes a follow-up, not a failure" has_output "waiting for you to confirm com.brave.Browser in macOS's dialog"
 check "exits 0" rc_is 0
 
 echo "login items"
