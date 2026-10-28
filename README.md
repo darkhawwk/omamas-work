@@ -205,7 +205,7 @@ OMAMAS_CAPTURE_DOMAINS="com.apple.dock com.googlecode.iterm2" ./capture.sh --onl
 
 ```bash
 # configs/secrets/.zshrc.local
-export GITHUB_TOKEN="op://Private/GitHub/token"
+export ANTHROPIC_API_KEY="op://Personal/Anthropic API/credential"
 ```
 
 `48-secrets.sh` fills in each template and writes the result to the same path under `$HOME` with mode 600. `~/.zshrc` sources `~/.zshrc.local` last.
