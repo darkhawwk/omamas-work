@@ -27,7 +27,7 @@ case "\$*" in
   "list --cask -1") cat "\$S/installed" ;;
   "info --cask foo") printf '==> foo (Foo): 2.0,abc123\nA test app\n==> Artifacts\nFoo.app (App)\n==> Analytics\n' ;;
   "install --cask --adopt foo") echo foo >>"\$S/installed" ;;
-  "bundle check"*) [[ -z \$(missing) ]] ;;
+  "bundle check"*) echo "mas-skip=[\$HOMEBREW_BUNDLE_MAS_SKIP]" >>"\$S/check.log"; [[ -z \$(missing) ]] ;;
   "bundle install"*) echo "skip=[\$HOMEBREW_BUNDLE_CASK_SKIP]" >>"\$S/bundle.log"; missing >>"\$S/installed" ;;
   "leaves"*) ;;
 esac
@@ -39,6 +39,20 @@ while [[ $1 == -* ]]; do shift; done
 exec "$@"
 SH
   chmod +x "$SHIMS"/*
+  # mas: `list` from state; `install` works only when "signed in".
+  : >"$SANDBOX/mas-installed"
+  cat >"$SHIMS/mas" <<SH
+#!/bin/bash
+case "\$1" in
+  list) cat "$SANDBOX/mas-installed" ;;
+  install)
+    echo "\$2" >>"$SANDBOX/mas.log"
+    [[ -e "$SANDBOX/mas-hangs" ]] && sleep 30
+    [[ -e "$SANDBOX/signed-in" ]] || { echo "Error: not signed in" >&2; exit 1; }
+    echo "\$2  App\$2  (1.0)" >>"$SANDBOX/mas-installed" ;;
+esac
+SH
+  chmod +x "$SHIMS/mas"
   export EXTRA_ENV="PATH=$SHIMS:$PATH OMAMAS_APPLICATIONS_DIR=$APPS"
 }
 ran() { grep -Fqx -- "$1" "$SANDBOX/brew.log"; }
@@ -73,5 +87,42 @@ check "says how to hand it to Homebrew" has_output "brew install --cask --force 
 check "doesn't try to adopt" bash -c "! grep -q -- '--adopt' '$SANDBOX/brew.log'"
 check "skips the cask instead of reinstalling" has_output "All Brewfile dependencies are installed"
 check "app untouched" test "$(defaults read "$APPS/Foo.app/Contents/Info" CFBundleShortVersionString)" = 1.5
+
+echo "packages: App Store apps"
+new_mac none
+printf 'cask "foo"\nmas "Bear", id: 111\nmas "Pixelmator Pro", id: 222\n' >"$CFG/Brewfile"
+omamas $M --dry-run
+check "dry run lists App Store installs by name" has_output "install Pixelmator Pro from the App Store"
+check "dry run installs nothing" test ! -e "$SANDBOX/mas.log"
+omamas $M
+check "not signed in: the run still succeeds" rc_is 0
+check "keeps App Store apps out of brew bundle" grep -q 'mas-skip=\[ *111 222\]' "$SANDBOX/check.log"
+check "warns per app" has_output "App Store: couldn't install Bear (not signed in to the App Store?)"
+check "leaves one follow-up naming them" has_output "App Store apps not installed: Bear, Pixelmator Pro. Sign in to the App Store app"
+touch "$SANDBOX/signed-in"
+omamas $M
+check "after signing in, installs them" has_output "App Store: installed Pixelmator Pro"
+omamas $M
+check "then converges" has_output "0 changed, 3 unchanged"
+check "never reinstalls" test "$(grep -c . "$SANDBOX/mas.log")" = 4
+
+echo "packages: App Store apps you chose to skip"
+new_mac none
+printf 'cask "foo"\nmas "Bear", id: 111\nmas "Pixelmator Pro", id: 222\n' >"$CFG/Brewfile"
+touch "$SANDBOX/signed-in"
+EXTRA_ENV="$EXTRA_ENV HOMEBREW_BUNDLE_MAS_SKIP=111" omamas $M
+check "honors HOMEBREW_BUNDLE_MAS_SKIP" has_output "App Store: Bear skipped (HOMEBREW_BUNDLE_MAS_SKIP)"
+check "still installs the rest" has_output "App Store: installed Pixelmator Pro"
+check "never tries the skipped one" bash -c "! grep -qx 111 '$SANDBOX/mas.log'"
+
+echo "packages: App Store install that never finishes"
+new_mac none
+printf 'cask "foo"\nmas "Bear", id: 111\n' >"$CFG/Brewfile"
+touch "$SANDBOX/mas-hangs"
+start=$SECONDS
+EXTRA_ENV="$EXTRA_ENV OMAMAS_PROMPT_TIMEOUT=2" omamas $M
+check "times out instead of waiting" test $((SECONDS - start)) -lt 10
+check "and becomes a follow-up" has_output "App Store apps not installed: Bear"
+check "exits 0" rc_is 0
 
 finish

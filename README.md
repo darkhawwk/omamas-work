@@ -22,7 +22,7 @@ Nothing has to be installed first: `install.sh` brings the Xcode Command Line To
 - [ ] **macOS 14 (Sonoma) or newer**, set up through Setup Assistant with an **admin** account. Run Omamas as that user, not with `sudo`.
 - [ ] **Connected to the internet.**
 - [ ] **Touch ID fingerprint enrolled** (System Settings → Touch ID & Password), so `sudo` can use it after the first prompt. Without one, sudo falls back to your password.
-- [ ] **Signed into the App Store** with the Apple ID that owns your `mas` apps. Nothing can sign in for you; without it those apps fail, and the rest of the run carries on.
+- [ ] **Signed into the App Store** with the Apple ID that owns your `mas` apps. Nothing can sign in for you. If you forget, those apps are skipped with a follow-up note; sign in, then run `./setup.sh --only packages`.
 - [ ] **Decide where the repo lives.** Dotfile symlinks point into the checkout, which defaults to `~/.local/share/omamas`. To mirror this Mac, set `OMAMAS_DIR`:
   ```bash
   curl -fsSL https://raw.githubusercontent.com/thebenwalther/omamas/main/install.sh | OMAMAS_DIR=~/Work/github.com/thebenwalther/omamas bash
@@ -240,6 +240,14 @@ If a cask in the Brewfile is already in `/Applications` because you downloaded i
 
 On a new Mac, where none of these apps exist yet, every cask simply installs.
 
+## App Store apps
+
+`mas` lines in the Brewfile are installed separately from the rest, one at a time, by `mas`. They need an App Store sign-in that a fresh Mac may not have yet, and inside `brew bundle` one missing sign-in would fail the whole packages step.
+
+- **Already installed:** skipped.
+- **Can't install** (not signed in, or the install doesn't finish within 5 minutes): a warning per app and one follow-up note. Sign in to the App Store app, then run `./setup.sh --only packages`.
+- **Skipping some on purpose,** as CI does: `HOMEBREW_BUNDLE_MAS_SKIP="1432731683 …" ./setup.sh`.
+
 ## Moving Claude data between Macs
 
 Chats on claude.ai and in the Claude app's Chat tab live in your Anthropic account and come back when you sign in. Claude Code sessions don't: their transcripts, memory, settings and the desktop app's session list are local files. `migrate/` moves those through iCloud Drive.
@@ -384,7 +392,7 @@ tests/rehearse.sh start   # a disposable copy: nothing it does is saved
 
 **What's different from a real Mac:**
 - **No Touch ID:** sudo asks for the password, which tests that fallback.
-- **App Store:** sign in inside the VM if you want the `mas` apps to install.
+- **App Store:** signing in inside a VM is unreliable, so the `mas` apps usually end up as a follow-up note there. That's expected; skip them with `HOMEBREW_BUNDLE_MAS_SKIP="<ids>" ./setup.sh`.
 - **Prompts:** the first `utmctl` command asks to let your terminal control UTM; allow it.
 
 To test `install.sh` against a local branch without pushing:
