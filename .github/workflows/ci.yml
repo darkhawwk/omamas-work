@@ -19,7 +19,7 @@ jobs:
   test:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: brew install shellcheck
       - run: tests/run.sh
 
@@ -36,7 +36,7 @@ jobs:
       # token avoids the 60-requests-per-hour anonymous API limit.
       GITHUB_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # Runners have no Apple ID, so App Store installs can only fail there.
       # brew bundle honors this list in both `install` and `check`.
       - name: Skip Mac App Store entries
