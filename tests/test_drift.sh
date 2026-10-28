@@ -26,7 +26,8 @@ case "$1" in
     "  security             FAILED   1s" "[INFO]    Log: ~/.local/state/omamas/logs/x.log"; exit 1 ;;
 esac
 SH
-  printf '#!/bin/bash\necho "$2" >>"%s/notified"\n' "$SANDBOX" >"$SHIMS/osascript"
+  # Real osascript passes trailing arguments to "on run argv": title, message.
+  printf '#!/bin/bash\necho "${@: -1}" >>"%s/notified"\necho "$*" >>"%s/osascript.log"\n' "$SANDBOX" "$SANDBOX" >"$SHIMS/osascript"
   chmod +x "$SANDBOX/fake-setup" "$SHIMS/osascript"
   export EXTRA_ENV="PATH=$SHIMS:$PATH OMAMAS_DRIFT_SETUP=$SANDBOX/fake-setup OMAMAS_DRIFT_REPO=$SANDBOX/repo"
 }
@@ -53,6 +54,7 @@ check "notices uncommitted repo changes" grep -qx "Omamas repo: 1 uncommitted ch
 check "points at the full log" grep -q "Details: ~/.local/state/omamas/logs/x.log" <<<"$(REPORT)"
 check "notifies once" test "$(wc -l <"$SANDBOX/notified" | tr -d ' ')" = 1
 check "notification names the first issue and the rest" grep -q 'Pending changes: dock (2), security (1) (+3 more)' "$SANDBOX/notified"
+check "message travels as an argument, not script text" bash -c "grep -q 'on run argv' '$SANDBOX/osascript.log'"
 omamas $D --no-notify
 check "--no-notify stays quiet" test "$(wc -l <"$SANDBOX/notified" | tr -d ' ')" = 1
 

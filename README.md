@@ -400,6 +400,14 @@ To test `install.sh` against a local branch without pushing:
 cat install.sh | OMAMAS_REPO="file://$PWD" OMAMAS_REF=$(git branch --show-current) OMAMAS_DIR=/tmp/omamas-try bash -s -- --dry-run
 ```
 
+## Security
+
+- **What runs on a new Mac is protected.** The one-liner installs `main` and runs it with `sudo`, so a ruleset on `main` blocks force-pushes and deletion and requires **signed commits**. Yours are signed with your 1Password key.
+- **No secrets in the repo.** Secret values never enter git: `configs/secrets/` holds 1Password references, and Claude backups are encrypted images outside the repo. GitHub secret scanning and push protection are on.
+- **CI can't write.** The workflow pins its token to read-only, even though the e2e job runs third-party installers. Actions are pinned to commit hashes, and Dependabot proposes updates.
+- **Config can't inject code.** Values reach AppleScript as arguments, never as script text, and `repos.conf` lines must be exactly `host/owner/repo`.
+- **Test hooks are off in real runs.** Overrides that choose which program runs, or what root writes to (`OMAMAS_SOCKETFILTERFW`, `OMAMAS_PAM_DIR`, …), only apply with `OMAMAS_TEST_MODE=1`, which the test suite sets.
+
 ## Environment variables
 
 | Variable | Effect |
@@ -414,3 +422,4 @@ cat install.sh | OMAMAS_REPO="file://$PWD" OMAMAS_REF=$(git branch --show-curren
 | `OMAMAS_MIN_MACOS` | Minimum macOS version allowed by pre-flight (default `14.0`) |
 | `OMAMAS_DRY_RUN=1` | Same as `--dry-run` |
 | `NO_COLOR` | Plain output |
+| `OMAMAS_TEST_MODE=1` | Lets the test suite point modules at fake tools; ignored otherwise |

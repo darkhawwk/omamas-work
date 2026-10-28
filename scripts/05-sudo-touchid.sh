@@ -19,7 +19,7 @@
 # shellcheck source=scripts/utils.sh
 source "$(dirname "${BASH_SOURCE[0]}")/utils.sh"
 
-PAM_DIR="${OMAMAS_PAM_DIR:-/etc/pam.d}" # overridable so tests never touch /etc
+PAM_DIR=$(test_override OMAMAS_PAM_DIR /etc/pam.d) # tests point this at a sandbox
 TARGET="$PAM_DIR/sudo_local"
 TEMPLATE="$PAM_DIR/sudo_local.template"
 TID_ACTIVE='^[[:space:]]*auth[[:space:]]+sufficient[[:space:]]+pam_tid\.so'

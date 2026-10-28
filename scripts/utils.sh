@@ -143,6 +143,15 @@ has_cmd() { command -v "$1" >/dev/null 2>&1; }
 
 lower() { tr '[:upper:]' '[:lower:]' <<<"$1"; }
 
+# Value of the env var NAME when OMAMAS_TEST_MODE=1 (set by tests/lib.sh),
+# otherwise DEFAULT. For overrides that pick which program runs or what root
+# writes to: in a real run, a stray variable must never decide that.
+#   FW=$(test_override OMAMAS_SOCKETFILTERFW /usr/libexec/ApplicationFirewall/socketfilterfw)
+test_override() {
+  local value=${!1:-}
+  if [[ -n $value && ${OMAMAS_TEST_MODE:-0} == 1 ]]; then printf '%s' "$value"; else printf '%s' "$2"; fi
+}
+
 # Run a command, killing it and everything it started after SECS seconds
 # (exit 142). For anything that can block on a macOS permission prompt nobody
 # is there to answer. The command gets its own process group so a child left

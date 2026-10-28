@@ -20,7 +20,7 @@ MANIFEST="$OMAMAS_CONFIG_DIR/macos/default-apps.conf"
 # A new default browser makes macOS show a confirmation dialog, and duti waits
 # for the answer; past this many seconds it becomes a follow-up instead.
 TIMEOUT="${OMAMAS_PROMPT_TIMEOUT:-30}"
-LSREGISTER="${OMAMAS_LSREGISTER:-/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister}"
+LSREGISTER=$(test_override OMAMAS_LSREGISTER /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister)
 # Where apps are looked up by bundle id (OMAMAS_APPLICATIONS_DIR narrows it for tests).
 if [[ -n ${OMAMAS_APPLICATIONS_DIR:-} ]]; then
   APP_DIRS=("$OMAMAS_APPLICATIONS_DIR")

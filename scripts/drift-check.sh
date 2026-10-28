@@ -17,15 +17,18 @@
 source "$(dirname "${BASH_SOURCE[0]}")/utils.sh"
 
 NOTIFY=1
-SETUP="${OMAMAS_DRIFT_SETUP:-$OMAMAS_ROOT/setup.sh}" # overridable for tests
+SETUP=$(test_override OMAMAS_DRIFT_SETUP "$OMAMAS_ROOT/setup.sh")
 CONF="$OMAMAS_CONFIG_DIR/drift-check.conf"
 REPORT_DIR="$OMAMAS_STATE_DIR/drift"
 REPO="${OMAMAS_DRIFT_REPO:-$OMAMAS_ROOT}" # overridable for tests
 
+# Title and message travel as script arguments (argv), so no text from the
+# dry run can break out of the AppleScript string.
 notify() {
   ((NOTIFY)) || return 0
-  local title=$1 message=${2//\"/\'}
-  run_with_timeout 10 osascript -e "display notification \"$message\" with title \"$title\"" >/dev/null 2>&1 || true
+  run_with_timeout 10 osascript \
+    -e 'on run argv' -e 'display notification (item 2 of argv) with title (item 1 of argv)' -e 'end run' \
+    "$1" "$2" >/dev/null 2>&1 || true
 }
 
 main() {

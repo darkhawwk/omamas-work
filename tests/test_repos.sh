@@ -42,13 +42,17 @@ git_q init "$(W a)"
 git -C "$(W a)" remote add origin git@github.com:someone-else/a.git
 echo local >"$(W a)/wip.txt"
 mkdir -p "$(W b)" && echo x >"$(W b)/notes.txt"
-printf 'github.com/me/a\ngithub.com/me/b\nnot-a-path\n' >"$CFG/repos.conf"
+printf 'github.com/me/a\ngithub.com/me/b\nnot-a-path\ngithub.com/../escape\n/etc/x/y\ngithub.com/me/a;rm\n' >"$CFG/repos.conf"
 omamas $M
 check "warns about a checkout with another origin" has_output "exists with origin 'git@github.com:someone-else/a.git'; left alone"
 check "keeps uncommitted work there" content_is "$(W a)/wip.txt" local
 check "refuses a non-git folder in the way" has_output "exists but isn't a git checkout"
 check "keeps that folder's files" content_is "$(W b)/notes.txt" x
 check "rejects a malformed line" has_output "'not-a-path' isn't <host>/<owner>/<repo>"
+check "rejects .. (can't escape ~/Work)" has_output "'github.com/../escape' isn't <host>/<owner>/<repo>"
+check "rejects absolute paths" has_output "'/etc/x/y' isn't <host>/<owner>/<repo>"
+check "rejects shell characters" has_output "'github.com/me/a;rm' isn't <host>/<owner>/<repo>"
+check "creates nothing outside ~/Work" test ! -e "$FAKE_HOME/escape" -a ! -e "$FAKE_HOME/Work/escape"
 check "exits non-zero for those errors" rc_is 1
 
 finish

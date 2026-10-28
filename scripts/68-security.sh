@@ -14,7 +14,7 @@
 source "$(dirname "${BASH_SOURCE[0]}")/utils.sh"
 
 MANIFEST="$OMAMAS_CONFIG_DIR/macos/security.conf"
-FW="${OMAMAS_SOCKETFILTERFW:-/usr/libexec/ApplicationFirewall/socketfilterfw}" # overridable for tests
+FW=$(test_override OMAMAS_SOCKETFILTERFW /usr/libexec/ApplicationFirewall/socketfilterfw)
 
 # on|off from socketfilterfw's wording ("Firewall is enabled. (State = 1)",
 # "Firewall stealth mode is on").

@@ -16,7 +16,7 @@
 source "$(dirname "${BASH_SOURCE[0]}")/utils.sh"
 
 CASK=1password
-APP="${OMAMAS_1PASSWORD_APP:-/Applications/1Password.app}" # overridable for tests
+APP=$(test_override OMAMAS_1PASSWORD_APP /Applications/1Password.app)
 
 # Open the app and leave a follow-up for the run summary. `open` is detached:
 # on a freshly downloaded app macOS first asks "…downloaded from the

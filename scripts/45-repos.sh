@@ -26,6 +26,13 @@ PENDING=""
 export GIT_TERMINAL_PROMPT=0
 export GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new"
 
+# Exactly host/owner/repo from safe characters, with no "." or ".." parts, so
+# a line can never place a clone outside ~/Work or smuggle in a URL.
+REPO_PATH='^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$'
+valid_repo_path() {
+  [[ $1 =~ $REPO_PATH && /$1/ != */./* && /$1/ != */../* ]]
+}
+
 ssh_url() {
   local host=${1%%/*} rest=${1#*/}
   printf 'git@%s:%s.git' "$host" "$rest"
@@ -35,8 +42,10 @@ ssh_url() {
 clone() {
   local path=$1 dest=$2
   # Tests point this at local bare repos.
-  if [[ -n ${OMAMAS_REPOS_URL_BASE:-} ]]; then
-    git clone --quiet "$OMAMAS_REPOS_URL_BASE/$path.git" "$dest" 2>/dev/null && echo local
+  local base
+  base=$(test_override OMAMAS_REPOS_URL_BASE "")
+  if [[ -n $base ]]; then
+    git clone --quiet "$base/$path.git" "$dest" 2>/dev/null && echo local
     return
   fi
   if git clone --quiet "$(ssh_url "$path")" "$dest" 2>/dev/null; then
@@ -59,7 +68,7 @@ main() {
 
   local path dest how origin
   while read -r path _; do
-    [[ $path == */*/* ]] || { log_error "'$path' isn't <host>/<owner>/<repo>"; continue; }
+    valid_repo_path "$path" || { log_error "'$path' isn't <host>/<owner>/<repo>"; continue; }
     dest="$ROOT/$path"
 
     if [[ -e $dest/.git ]]; then

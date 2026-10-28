@@ -1,8 +1,6 @@
 # Brewfile draft captured from Bizarro on 2026-10-27.
 # Everything installed on request. Delete what you don't want on a new Mac.
 
-tap "anomalyco/tap", "https://github.com/anomalyco/homebrew-tap.git"
-tap "olets/tap", trusted: true
 # ARP scanning and fingerprinting tool
 brew "arp-scan"
 # Improved shell history for zsh, bash, fish and nushell

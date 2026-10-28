@@ -45,10 +45,11 @@ SH
 #!/bin/bash
 [[ -e "$ST/se-denied" ]] && { echo "Not authorized to send Apple events (-1743)" >&2; exit 1; }
 [[ -e "$ST/se-hangs" ]] && sleep 30
-case "\$2" in
+case "\$*" in
   *"get the path of every login item"*) paste -sd , "$ST/login" | sed 's/,/, /g' ;;
-  *"make login item"*) sed -E 's/.*path:"([^"]*)", hidden:([a-z]+).*/\1|\2/' <<<"\$2" | tr '|' '\n' | head -n1 >>"$ST/login"
-     sed -E 's/.*hidden:([a-z]+).*/\1/' <<<"\$2" >>"$ST/login-hidden" ;;
+  # Real osascript passes trailing arguments to "on run argv": path, hidden.
+  *"make login item"*) args=("\$@"); echo "\${args[\$#-2]}" >>"$ST/login"; echo "\${args[\$#-1]}" >>"$ST/login-hidden"
+     echo "\$*" >>"$ST/osascript.log" ;;
 esac
 SH
   cat >"$SHIMS/socketfilterfw" <<SH
@@ -139,6 +140,7 @@ omamas scripts/66-login-items.sh
 check "exits 0" rc_is 0
 check "adds a path with spaces" grep -Fqx "$APPS/Brave Browser.app" "$ST/login"
 check "passes the hidden flag" grep -qx true "$ST/login-hidden"
+check "passes values as arguments, not script text" bash -c "! grep -q 'path:\"' '$ST/osascript.log'"
 check "keeps existing items" has_output "Rectangle"
 check "skips apps that aren't installed" has_output "Not installed, not added: $APPS/Missing.app"
 omamas scripts/66-login-items.sh
@@ -168,6 +170,16 @@ check "second run changes nothing" has_output "0 changed, 3 unchanged"
 echo Off >"$ST/fv"
 omamas scripts/68-security.sh
 check "FileVault off is a warning with a follow-up" has_output "Turn on FileVault"
+echo "security: overrides only in test mode"
+new_mac
+printf 'firewall on\n' >"$CFG/macos/security.conf"
+printf '#!/bin/bash\ntouch %s/planted-ran\necho "Firewall is enabled. (State = 1)"\n' "$SANDBOX" >"$SANDBOX/planted"
+chmod +x "$SANDBOX/planted"
+EXTRA_ENV="$EXTRA_ENV OMAMAS_SOCKETFILTERFW=$SANDBOX/planted OMAMAS_TEST_MODE=0" omamas scripts/68-security.sh --dry-run
+check "a planted override is ignored outside test mode" test ! -e "$SANDBOX/planted-ran"
+EXTRA_ENV="$EXTRA_ENV OMAMAS_SOCKETFILTERFW=$SANDBOX/planted" omamas scripts/68-security.sh --dry-run
+check "and honored in test mode" test -e "$SANDBOX/planted-ran"
+
 printf 'firewall maybe\n' >"$CFG/macos/security.conf"
 omamas scripts/68-security.sh
 check "rejects values other than on/off" has_output "firewall must be on or off"

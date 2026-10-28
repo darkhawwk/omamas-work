@@ -9,11 +9,17 @@ on:
     - cron: "0 8 * * 1" # Mondays 08:00 UTC
   workflow_dispatch: # "Run workflow" button in the Actions tab
 
+# The e2e job hands GITHUB_TOKEN to the whole bootstrap, third-party installers
+# included, so it must never be able to write: pin it read-only here instead of
+# relying on the repository's default setting.
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
       - run: brew install shellcheck
       - run: tests/run.sh
 
@@ -30,7 +36,7 @@ jobs:
       # token avoids the 60-requests-per-hour anonymous API limit.
       GITHUB_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
       # Runners have no Apple ID, so App Store installs can only fail there.
       # brew bundle honors this list in both `install` and `check`.
       - name: Skip Mac App Store entries
