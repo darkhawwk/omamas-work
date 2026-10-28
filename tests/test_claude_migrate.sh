@@ -114,4 +114,17 @@ check "refuses a backup made for another home" has_output "Sessions are filed by
 omamas $R --force "$OLD_IMG"
 check "--force restores anyway" rc_is 0
 
+echo "claude-backup: password handling"
+setup_home
+git_q init "$FAKE_HOME/Work/repo"
+printf '#!/bin/bash\necho "${OMAMAS_BACKUP_PASSWORD:-unset}" >>"%s/git-env"\nexec /usr/bin/git "$@"\n' "$SANDBOX" >"$SHIMS/git"
+chmod +x "$SHIMS/git"
+omamas $B --dry-run
+check "git runs during the scan" test -s "$SANDBOX/git-env"
+check "no child process sees the password" bash -c "! grep -qv '^unset$' '$SANDBOX/git-env'"
+EXTRA_ENV="PATH=$SHIMS:$PATH OMAMAS_BACKUP_PASSWORD=short-pw" omamas $B
+check "refuses a short password for a new backup" rc_is 1
+check "says why" has_output "too short: use at least 12 characters"
+check "writes no image" test ! -e "$DEST"
+
 finish

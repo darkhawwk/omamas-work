@@ -8,6 +8,12 @@
 # shellcheck source=scripts/utils.sh
 source "$(dirname "${BASH_SOURCE[0]}")/../scripts/utils.sh"
 
+# Take a password from the environment right away and remove it there, so no
+# process this script starts (git, rsync, hdiutil) ever inherits it.
+BACKUP_PASSWORD_ENV=${OMAMAS_BACKUP_PASSWORD:-}
+unset OMAMAS_BACKUP_PASSWORD
+MIN_PASSWORD=12
+
 # shellcheck disable=SC2034 # used by claude-backup.sh and claude-restore.sh
 CLAUDE_ITEMS=(
   ".claude"                              # transcripts, memory, settings, skills, plugins
@@ -64,18 +70,22 @@ backup_setting() {
 }
 
 # Password for the encrypted image: from OMAMAS_BACKUP_PASSWORD (automation,
-# tests) or typed at the terminal. CONFIRM=1 asks twice.
+# tests) or typed at the terminal. CONFIRM=1 (a new backup) asks twice and
+# requires MIN_PASSWORD characters either way: the image sits in iCloud, where
+# a short password can be guessed offline.
 ask_password() {
   local confirm=${1:-0} pw again
-  if [[ -n ${OMAMAS_BACKUP_PASSWORD:-} ]]; then
-    printf '%s' "$OMAMAS_BACKUP_PASSWORD"
+  if [[ -n $BACKUP_PASSWORD_ENV ]]; then
+    ((!confirm || ${#BACKUP_PASSWORD_ENV} >= MIN_PASSWORD)) ||
+      die "OMAMAS_BACKUP_PASSWORD is too short: use at least $MIN_PASSWORD characters."
+    printf '%s' "$BACKUP_PASSWORD_ENV"
     return 0
   fi
   (: </dev/tty) 2>/dev/null || die "No terminal to ask for the backup password (or set OMAMAS_BACKUP_PASSWORD)."
   read -rsp "Backup password: " pw </dev/tty
   echo >&2
   if ((confirm)); then
-    ((${#pw} >= 8)) || die "Use at least 8 characters."
+    ((${#pw} >= MIN_PASSWORD)) || die "Use at least $MIN_PASSWORD characters."
     read -rsp "Repeat password: " again </dev/tty
     echo >&2
     [[ $pw == "$again" ]] || die "Passwords don't match."

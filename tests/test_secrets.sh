@@ -15,7 +15,7 @@ new_mac() {
 export API_TOKEN="op://Private/Service/token"
 export OTHER_KEY="op://Private/Other/credential"
 TPL
-  printf 'auth: op://Private/Tool/password\n' >"$CFG/secrets/.config/tool/hosts.yml"
+  printf 'auth: "op://Private/Tool/password"\n' >"$CFG/secrets/.config/tool/hosts.yml"
   if [[ $1 != missing ]]; then
     cat >"$SHIMS/op" <<SH
 #!/bin/bash
@@ -25,15 +25,14 @@ echo "\$*" >>"$SANDBOX/op.log"
 if [[ \$1 == read ]]; then
   field=\${@: -1}
   field=\${field##*/}
-  if [[ \$field == evil ]]; then printf '%s' 'x"; touch $SANDBOX/PWNED; echo \$(touch $SANDBOX/PWNED) \` it'"'"'s'
-  else printf 's3cr3t-%s' "\$field"; fi
+  case \$field in
+    evil) printf '%s' 'x"; touch $SANDBOX/PWNED; echo \$(touch $SANDBOX/PWNED) \` it'"'"'s' ;;
+    newline) printf 'a\nb' ;;
+    *) printf 's3cr3t-%s' "\$field" ;;
+  esac
   exit 0
 fi
-while [[ \$# -gt 0 ]]; do
-  case \$1 in --in-file) in=\$2; shift ;; --out-file) out=\$2; shift ;; esac
-  shift
-done
-sed -E 's#op://[^/]+/[^/]+/([A-Za-z]+)#s3cr3t-\1#g' "\$in" >"\$out"
+exit 2 # only op read is expected
 SH
     chmod +x "$SHIMS/op"
   fi
@@ -49,7 +48,7 @@ omamas $M
 check "exits 0" rc_is 0
 check "fills in values, single-quoted" grep -qx "export API_TOKEN='s3cr3t-token'" "$FAKE_HOME/.zshrc.local"
 check "keeps comments" grep -qx '# export UNUSED="op://Private/Commented/out"' "$FAKE_HOME/.zshrc.local"
-check "renders nested paths too" grep -qx 'auth: s3cr3t-password' "$FAKE_HOME/.config/tool/hosts.yml"
+check "renders nested paths too" grep -qx 'auth: "s3cr3t-password"' "$FAKE_HOME/.config/tool/hosts.yml"
 check "writes mode 600" test "$(stat -f %Lp "$FAKE_HOME/.zshrc.local")" = 600
 check "never prints a secret value" lacks_output "s3cr3t"
 check "leaves no rendered copies behind" bash -c "! ls -d \"\${TMPDIR:-/tmp}\"/omamas-secrets.* 2>/dev/null | grep -q ."
@@ -76,8 +75,30 @@ printf 'echo hi; export X="op://Private/X/y"\n' >>"$CFG/secrets/.zshrc.local"
 omamas $M
 check "refuses any other shell line" has_output ".zshrc.local line 4: only comments and export"
 check "writes nothing for that file" test ! -e "$FAKE_HOME/.zshrc.local"
-check "still renders the other files" grep -qx 'auth: s3cr3t-password' "$FAKE_HOME/.config/tool/hosts.yml"
+check "still renders the other files" grep -qx 'auth: "s3cr3t-password"' "$FAKE_HOME/.config/tool/hosts.yml"
 check "fails the module" rc_is 1
+for name in .zlogin .bash_logout .config/fish/config.fish .ZLOGOUT; do
+  new_mac ok
+  mkdir -p "$CFG/secrets/$(dirname "$name")"
+  printf 'id >%s/PWNED\nexport T="op://Private/T/token"\n' "$SANDBOX" >"$CFG/secrets/$name"
+  omamas $M
+  check "$name is held to the shell rules" has_output "$name line 1: only comments and export"
+done
+
+echo "secrets: data files"
+new_mac ok
+printf '{"token": "op://Private/A/token", "hook": "op://Private/B/evil"}\n' >"$CFG/secrets/.config/tool/creds.json"
+omamas $M
+check "refuses a value that would break out of its quotes" has_output "creds.json line 1: the value has a quote"
+check "writes nothing for that file" test ! -e "$FAKE_HOME/.config/tool/creds.json"
+check "never prints the value" lacks_output "PWNED"
+printf 'a: "op://Private/A/newline"\n' >"$CFG/secrets/.config/tool/creds.json"
+omamas $M
+check "refuses a line break too" has_output "creds.json line 1: the value has a quote"
+printf 'a: "op://Private/A/token"\n# b: "op://Private/B/evil"\n' >"$CFG/secrets/.config/tool/creds.json"
+omamas $M
+check "fills in a clean value" grep -qx 'a: "s3cr3t-token"' "$FAKE_HOME/.config/tool/creds.json"
+check "leaves commented references alone" grep -qx '# b: "op://Private/B/evil"' "$FAKE_HOME/.config/tool/creds.json"
 
 echo "secrets: 1Password not ready"
 new_mac locked

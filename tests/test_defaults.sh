@@ -50,4 +50,14 @@ check "rejects collection types" has_output "unsupported type '-array'"
 check "rejects bad booleans" has_output "'maybe' is not a valid -bool"
 check "still applies the valid entries" test "$(defaults read "$D" count)" = 42
 
+echo "defaults: domains, not files"
+new_sandbox
+mkdir -p "$CFG/macos"
+printf '%s  k  -bool  true\n~/victim.plist  k  -bool  true\n' "$FAKE_HOME/.zshrc" >"$CFG/macos/defaults.conf"
+echo 'keep me' >"$FAKE_HOME/.zshrc"
+EXTRA_ENV="$EXTRA_ENV OMAMAS_TEST_MODE=0" omamas $M
+check "refuses a file path as a domain" has_output "not a preference domain"
+check "leaves that file alone" content_is "$FAKE_HOME/.zshrc" "keep me"
+check "refuses ~ paths too" test ! -e "$FAKE_HOME/victim.plist"
+
 finish

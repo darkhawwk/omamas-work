@@ -7,6 +7,7 @@
 #
 # Access, tried in order for each repo:
 #   1. SSH: works once 1Password's SSH agent is on (Settings → Developer).
+#      Host keys are never accepted on first sight (configs/ssh/).
 #   2. HTTPS: uses your `gh auth login` if you have one; otherwise public only.
 # A repo nothing can reach yet (private, no access on a fresh Mac) is reported
 # with a follow-up rather than failing the run; re-run once access is set up:
@@ -24,7 +25,14 @@ PENDING=""
 
 # Never prompt: a missing credential should fail fast, not hang the run.
 export GIT_TERMINAL_PROMPT=0
-export GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new"
+# Host keys must already be known: GitHub's are pinned in the repo, and any
+# other host must be in ~/.ssh/known_hosts. On a fresh Mac, accepting the
+# first key offered would trust whatever answers as github.com. An unknown
+# host falls through to HTTPS, where the certificate is checked.
+KNOWN_HOSTS="$OMAMAS_CONFIG_DIR/ssh/github_known_hosts"
+GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=yes"
+GIT_SSH_COMMAND+=" -o $(printf '%q' "UserKnownHostsFile=\"$KNOWN_HOSTS\" \"$HOME/.ssh/known_hosts\"")"
+export GIT_SSH_COMMAND
 
 # Exactly host/owner/repo from safe characters, with no "." or ".." parts, so
 # a line can never place a clone outside ~/Work or smuggle in a URL.
@@ -73,6 +81,8 @@ main() {
 
     if [[ -e $dest/.git ]]; then
       origin=$(git -C "$dest" remote get-url origin 2>/dev/null || true)
+      # An https://user:token@host/… origin must not reach the log.
+      if [[ $origin =~ ^([A-Za-z+]+://)[^/]*@(.*)$ ]]; then origin="${BASH_REMATCH[1]}${BASH_REMATCH[2]}"; fi
       case $origin in
         *"${path#*/}" | *"${path#*/}.git") log_skip "$(tildify "$dest")" ;;
         *) log_warn "$(tildify "$dest") exists with origin '${origin:-none}'; left alone" ;;

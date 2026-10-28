@@ -55,4 +55,19 @@ check "rejects shell characters" has_output "'github.com/me/a;rm' isn't <host>/<
 check "creates nothing outside ~/Work" test ! -e "$FAKE_HOME/escape" -a ! -e "$FAKE_HOME/Work/escape"
 check "exits non-zero for those errors" rc_is 1
 
+echo "repos: credentials in an origin stay out of the log"
+new_remotes
+git_q init "$(W a)"
+git -C "$(W a)" remote add origin https://me:ghp_FAKEtoken123@github.com/someone-else/a.git
+printf 'github.com/me/a\n' >"$CFG/repos.conf"
+omamas $M
+check "shows the origin without its credentials" has_output "exists with origin 'https://github.com/someone-else/a.git'"
+check "never logs the token" lacks_output "ghp_FAKEtoken123"
+
+echo "repos: host keys"
+FP=$(ssh-keygen -lf "$REPO/configs/ssh/github_known_hosts" | awk '{print $2}' | sort | tr '\n' ' ')
+check "pinned keys match GitHub's published fingerprints" test "$FP" = "SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU SHA256:p2QAMXNIC1TJYWeIOttrVc98/R1BUFWu3/LiyKgUfQM SHA256:uNiVztksCsDhcc0u9e8BujQXVUpKZIDTMczCvj3tD2s "
+check "never accepts a new host key" bash -c "! grep -q accept-new '$REPO/scripts/45-repos.sh'"
+check "requires a known host key" grep -q 'StrictHostKeyChecking=yes' "$REPO/scripts/45-repos.sh"
+
 finish

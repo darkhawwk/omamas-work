@@ -149,7 +149,6 @@ main() {
 
   local password
   password=$(ask_password 1)
-  unset OMAMAS_BACKUP_PASSWORD # keep it out of every process started from here
   [[ -d $dest ]] || mkdir -p "$dest" || die "Cannot create $(tildify "$dest")"
 
   # Build next to the staging folder, then move: a sync client should never

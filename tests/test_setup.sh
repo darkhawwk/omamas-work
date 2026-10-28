@@ -16,6 +16,7 @@ check "prints summary" has_output "Omamas finished"
 check "changes nothing" test ! -e "$FAKE_HOME/.zshrc"
 LOG="$FAKE_HOME/.local/state/omamas/logs/latest.log"
 check "writes a log file" test -s "$LOG"
+check "keeps logs and backups private (700)" test "$(stat -f %Lp "$FAKE_HOME/.local/state/omamas")" = 700
 check "log is free of ANSI escapes" bash -c "! grep -q $'\033' '$LOG'"
 check "releases its lock" test ! -d "$FAKE_HOME/.local/state/omamas/setup.lock"
 

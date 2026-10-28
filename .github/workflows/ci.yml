@@ -20,6 +20,8 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false # nothing later needs git credentials on disk
       - run: brew install shellcheck
       - run: tests/run.sh
 
@@ -37,6 +39,8 @@ jobs:
       GITHUB_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false # nothing later needs git credentials on disk
       # Runners have no Apple ID, so App Store installs can only fail there.
       # brew bundle honors this list in both `install` and `check`.
       - name: Skip Mac App Store entries

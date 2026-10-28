@@ -33,7 +33,14 @@ check "home folder mode untouched" test "$(stat -f '%Lp' "$FAKE_HOME")" = 755
 check "rejects non-octal modes" has_output "mode 'rwx' isn't octal"
 check "rejects paths outside ~" test ! -e /tmp/omamas-outside
 check "never chmods through a symlink" test "$(stat -f '%Lp' "$SANDBOX/elsewhere")" != 700
-check "reports the symlink" has_output "~/Linked is a symlink"
+check "reports the symlink" has_output "~/Linked goes through a symlink"
+mkdir -p "$SANDBOX/elsewhere/inner" && chmod 755 "$SANDBOX/elsewhere/inner"
+printf '~/Linked/inner 700\n~/Linked/ 700\n' >"$CFG/directories.conf"
+omamas scripts/30-directories.sh
+check "rejects a symlinked parent folder" has_output "~/Linked/inner goes through a symlink"
+check "folder behind the link untouched" test "$(stat -f '%Lp' "$SANDBOX/elsewhere/inner")" = 755
+check "rejects a trailing slash" has_output "/Linked/: must be a path under ~"
+check "nothing behind the link changed" test "$(stat -f '%Lp' "$SANDBOX/elsewhere")" != 700
 
 echo "fonts"
 new_sandbox

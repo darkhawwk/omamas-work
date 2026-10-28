@@ -99,6 +99,8 @@ quit_system_settings() {
   done
 }
 
+DOMAIN='^(NSGlobalDomain|[A-Za-z0-9-]+(\.[A-Za-z0-9_-]+)+)$'
+
 main() {
   module_start "$@"
   require_macos
@@ -113,6 +115,14 @@ main() {
   while read -r domain key type value; do
     value=${value/#\~/$HOME}
     domain=${domain/#\~/$HOME}
+
+    # Only preference domains, never file paths: given a path, `defaults
+    # write` replaces that file with a plist. The tests write plist paths
+    # inside their sandbox, so test mode allows them.
+    if [[ ! $domain =~ $DOMAIN && ${OMAMAS_TEST_MODE:-0} != 1 ]]; then
+      log_error "$domain: not a preference domain (like com.apple.dock or NSGlobalDomain)"
+      continue
+    fi
 
     if ! type_name "$type" >/dev/null; then
       log_error "$domain $key: unsupported type '$type' (use -bool, -int, -float or -string)"

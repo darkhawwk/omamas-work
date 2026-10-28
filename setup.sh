@@ -120,7 +120,7 @@ preflight() {
 # Prevent two runs from racing (e.g. a scheduled reconcile and a manual one).
 acquire_lock() {
   LOCK_DIR="$OMAMAS_STATE_DIR/setup.lock"
-  mkdir -p "$OMAMAS_STATE_DIR"
+  mkdir -p "$OMAMAS_STATE_DIR" && chmod 700 "$OMAMAS_STATE_DIR"
   if ! mkdir "$LOCK_DIR" 2>/dev/null; then
     local holder
     holder=$(cat "$LOCK_DIR/pid" 2>/dev/null || echo "")

@@ -28,6 +28,10 @@ OMAMAS_SCRIPTS="$(canonical_path "$(dirname "${BASH_SOURCE[0]}")")"
 OMAMAS_ROOT="$(canonical_path "$OMAMAS_SCRIPTS/..")"
 OMAMAS_CONFIG_DIR="$(canonical_path "${OMAMAS_CONFIG_DIR:-$OMAMAS_ROOT/configs}")"
 OMAMAS_STATE_DIR="${OMAMAS_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/omamas}"
+# Logs and backups name your files and repos (and backups can hold secret
+# files): keep the folder readable by you alone. Every local account is in
+# group staff, and a home folder is group-traversable.
+if [[ -d $OMAMAS_STATE_DIR && ! -L $OMAMAS_STATE_DIR ]]; then chmod 700 "$OMAMAS_STATE_DIR" 2>/dev/null || true; fi
 
 # One RUN_ID per orchestrated run, shared by every module so that all backups
 # from a single run land in one timestamped directory.

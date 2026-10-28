@@ -74,6 +74,7 @@ omamas/
 │   ├── macos/computer-name.conf this Mac's name
 │   ├── repos.conf               git repos to clone under ~/Work
 │   ├── secrets/                 templates with op:// references, rendered into $HOME
+│   ├── ssh/github_known_hosts   GitHub's SSH host keys, pinned for repo clones
 │   ├── macos/defaults.conf      `defaults` preferences
 │   ├── macos/dock.conf          Dock apps, in order
 │   ├── macos/default-apps.conf  which app opens which links and documents
@@ -209,7 +210,8 @@ export GITHUB_TOKEN="op://Private/GitHub/token"
 ```
 
 `48-secrets.sh` fills in each template and writes the result to the same path under `$HOME` with mode 600. `~/.zshrc` sources `~/.zshrc.local` last.
-- **Shell files are strict.** A template zsh or bash will source (`.zshrc.local`, `*.sh`, …) may contain only comments, blank lines and `export NAME="op://…"`. Each value is fetched with `op read` and written single-quoted, so a value containing a quote, `$` or backtick can never run as code. Other files go through `op inject`.
+- **Every template is a shell file unless it ends in `.yml`, `.yaml`, `.json` or `.toml`.** Shell templates may contain only comments, blank lines and `export NAME="op://…"`. Each value is fetched with `op read` and written single-quoted, so a value containing a quote, `$` or backtick can never run as code, whatever startup file it lands in (`.zlogin`, `config.fish`, …).
+- **Data files** keep their text with each reference replaced by its value. Put references inside double quotes there: a value containing a quote, backslash or line break is refused, since it could change the file's structure.
 - **Getting a reference:** in 1Password, open the item and use the field's menu → *Copy Secret Reference*.
 - **What gets logged:** only changed or unchanged, never a value. An older rendered file is backed up before it's replaced.
 - **When 1Password isn't ready:** if `op` isn't installed or the app's CLI integration is off, the run continues with a follow-up note instead of failing.
@@ -405,10 +407,14 @@ cat install.sh | OMAMAS_REPO="file://$PWD" OMAMAS_REF=$(git branch --show-curren
 
 - **What runs on a new Mac is protected.** The one-liner installs `main` and runs it with `sudo`, so a ruleset on `main` blocks force-pushes and deletion and requires **signed commits**. Yours are signed with your 1Password key.
 - **No secrets in the repo.** Secret values never enter git: `configs/secrets/` holds 1Password references, and Claude backups are encrypted images outside the repo. GitHub secret scanning and push protection are on.
-- **CI can't write.** The workflow pins its token to read-only, even though the e2e job runs third-party installers. Actions are pinned to commit hashes, and Dependabot proposes updates.
+- **CI can't write.** The workflow pins its token to read-only, even though the e2e job runs third-party installers, and checkout leaves no git credentials on disk. Actions are pinned to commit hashes, and Dependabot proposes updates.
 - **sudo only as long as it's needed.** `setup.sh` asks once, up front, and keeps the ticket fresh only until `20-packages`, the last module that needs it. Then it drops the ticket (`sudo -k`), so repo clones, runtime downloads, secrets and everything after can't use `sudo` without asking.
 - **No check-then-swap gaps.** What root installs (the Touch ID PAM file, the Homebrew installer) stays in memory between being checked and being used, never in a temp file another process could replace. The `/tmp` marker for the Command Line Tools is created with `O_EXCL|O_NOFOLLOW`, which refuses a planted symlink.
-- **Config values can't become code.** Values reach AppleScript as arguments, never as script text; `repos.conf` lines must be exactly `host/owner/repo`; `directories.conf` paths must stay under `~` with octal modes; secrets in shell files are single-quoted. The Brewfile (Ruby) and `configs/home/` dotfiles (shell) *are* code, though: review changes to them like changes to a script.
+- **Config values can't become code.** Values reach AppleScript as arguments, never as script text; `repos.conf` lines must be exactly `host/owner/repo`; `directories.conf` paths must stay under `~`, with octal modes and no symlink anywhere along the way; `defaults.conf` takes preference domains, never file paths; secrets in shell files are single-quoted.
+- **Some config *is* code.** The Brewfile is Ruby, `configs/home/` dotfiles are shell, and `.config/mise/config.toml` can carry `[hooks]` that run on `mise install` and in every shell. Review changes to those like changes to a script.
+- **SSH host keys are pinned.** `45-repos` trusts only GitHub's published host keys (`configs/ssh/github_known_hosts`) or ones already in `~/.ssh/known_hosts`, never whatever answers first on a fresh Mac.
+- **Logs and backups are private.** `~/.local/state/omamas` is kept at mode 700, and a repo URL is logged without any username or token in it.
+- **Backups need a long password.** New Claude backups require 12+ characters, because the image sits in iCloud, where a short password can be guessed offline. `OMAMAS_BACKUP_PASSWORD` is read and removed from the environment as soon as the script starts.
 - **Test hooks are off in real runs.** Overrides that choose which program runs, or what root writes to (`OMAMAS_SOCKETFILTERFW`, `OMAMAS_PAM_DIR`, …), only apply with `OMAMAS_TEST_MODE=1`, which the test suite sets.
 
 ## Environment variables

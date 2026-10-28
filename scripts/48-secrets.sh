@@ -3,16 +3,19 @@
 #
 # Every file under configs/secrets/ is a template for the same path under
 # $HOME (configs/secrets/.zshrc.local → ~/.zshrc.local). Templates contain
-# op://<vault>/<item>/<field> references, never values; `op inject` fills them
-# in and the result is written with mode 600. Values never enter git, logs or
-# backups' names; only "changed" or "unchanged" is reported.
+# op://<vault>/<item>/<field> references, never values; each is fetched with
+# `op read` and the result is written with mode 600. Values never enter git,
+# logs or backups' names; only "changed" or "unchanged" is reported.
 #
-# Shell files (.zshrc*, .zshenv*, .zprofile*, .bashrc*, .profile*, *.sh,
-# *.zsh) skip `op inject`: it pastes values unescaped, so a value holding a
-# quote, $ or backtick would run as code every time the shell sources the
-# file. They may contain only comments, blank lines and
+# Every template is treated as a shell file unless its name ends in .yml,
+# .yaml, .json or .toml, because a shell sources more startup files than any
+# list would remember (.zlogin, .bash_logout, config.fish, …). Shell files may
+# contain only comments, blank lines and
 #   export NAME="op://<vault>/<item>/<field>"
-# Each value is fetched with `op read` and written single-quoted.
+# and each value is written single-quoted, so none can run as code.
+# Data files keep their text; each reference is replaced by its value, but a
+# value holding a quote, backslash or line break is refused, since it could
+# change the file's structure. Put references inside double quotes there.
 #
 #   No references in a template   → SKIP (nothing to render yet)
 #   Rendered output already there  → SKIP
@@ -39,11 +42,12 @@ cleanup_render() {
 }
 
 SHELL_EXPORT='^export ([A-Za-z_][A-Za-z0-9_]*)="(op://[^"]+)"$'
+REFERENCE='op://[^"'"'"'[:space:]]+'
 BAD_LINE=""
 
-is_shell_file() {
-  case ${1##*/} in
-    .zshrc* | .zshenv* | .zprofile* | .bashrc* | .bash_profile* | .profile* | *.sh | *.zsh) return 0 ;;
+is_data_file() {
+  case $(lower "${1##*/}") in
+    *.yml | *.yaml | *.json | *.toml) return 0 ;;
   esac
   return 1
 }
@@ -55,8 +59,8 @@ shell_quote() {
 }
 
 # render_shell TEMPLATE OUT. Returns 3 (line number in BAD_LINE) on a line
-# that isn't allowed, or op's exit code. The value stays in a variable:
-# never on a command line, never in a log.
+# that isn't allowed, or op's exit code. Values stay in variables: never on a
+# command line, never in a log.
 render_shell() {
   local line name value n=0 rc
   while IFS= read -r line || [[ -n $line ]]; do
@@ -73,6 +77,29 @@ render_shell() {
       BAD_LINE=$n
       return 3
     fi
+  done <"$1" >"$2"
+}
+
+# render_data TEMPLATE OUT. Returns 4 (line number in BAD_LINE) on a value
+# that could change the file's structure, or op's exit code.
+render_data() {
+  local line ref value n=0 rc
+  while IFS= read -r line || [[ -n $line ]]; do
+    n=$((n + 1))
+    if [[ ! $line =~ ^[[:space:]]*# ]]; then
+      while [[ $line =~ $REFERENCE ]]; do
+        ref=${BASH_REMATCH[0]}
+        rc=0
+        value=$(run_with_timeout "$TIMEOUT" op read --no-newline "$ref") || rc=$?
+        ((rc == 0)) || return "$rc"
+        if [[ $value == *[\"\'\\$'\n'$'\r']* || $value == *op://* ]]; then
+          BAD_LINE=$n
+          return 4
+        fi
+        line=${line//"$ref"/"$value"}
+      done
+    fi
+    printf '%s\n' "$line"
   done <"$1" >"$2"
 }
 
@@ -120,14 +147,17 @@ main() {
     rendered="$RENDER_DIR/${rel//\//_}"
     # op's own errors name references, never values.
     rc=0
-    if is_shell_file "$src"; then
-      render_shell "$src" "$rendered" || rc=$?
+    if is_data_file "$src"; then
+      render_data "$src" "$rendered" || rc=$?
     else
-      run_with_timeout "$TIMEOUT" op inject --force --in-file "$src" --out-file "$rendered" >/dev/null || rc=$?
+      render_shell "$src" "$rendered" || rc=$?
     fi
+    # Never echo the line or the value: either may be a secret.
     if ((rc == 3)); then
-      # Never echo the line itself: it may be a value pasted by mistake.
-      log_error "$(tildify "$src") line $BAD_LINE: only comments and export NAME=\"op://…\" are allowed; not rendered"
+      log_error "Template $rel line $BAD_LINE: only comments and export NAME=\"op://…\" are allowed; not rendered"
+      continue
+    elif ((rc == 4)); then
+      log_error "Template $rel line $BAD_LINE: the value has a quote, backslash or line break that could change the file; not rendered"
       continue
     elif ((rc == 142)); then
       log_warn "1Password didn't answer within ${TIMEOUT}s (approval prompt unanswered?)"
