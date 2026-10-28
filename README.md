@@ -360,8 +360,32 @@ Only files named `NN-*.sh` are modules. Everything else in `scripts/` is a libra
 4. **Real run, one module at a time:** `./setup.sh --only directories`, then dotfiles, and so on. Check `~/.local/state/omamas/backups/` after each one. Running the same command again must report `0 changed`.
 
 5. **End to end on a clean Mac.**
-   - Run the bootstrap in a disposable macOS VM, using [Tart](https://tart.run) or UTM on Apple silicon. Snapshot the fresh install, run the `curl | bash` one-liner, run `./setup.sh` a second time, then revert to the snapshot.
-   - CI does the same on every push: `.github/workflows/ci.yml` bootstraps through `install.sh` on an ephemeral `macos-latest` runner and fails if the second run changes anything.
+   - CI does this on every push: `.github/workflows/ci.yml` bootstraps through `install.sh` on an ephemeral `macos-latest` runner and fails if the second run changes anything. CI can't answer prompts, run as your user, or start from a truly bare Mac, so also rehearse in a VM (next section).
+
+## Rehearsing in a VM
+
+[UTM](https://mac.getutm.app) (in the Brewfile) runs macOS virtual machines with Apple's own virtualization. `tests/rehearse.sh` wraps its `utmctl` command, so each rehearsal starts from a factory-fresh Mac and leaves nothing behind.
+
+**Once: build the base VM** (about 30 minutes, mostly downloading macOS):
+1. In UTM: **+** → **Virtualize** → **macOS 12+**. Leave the installer (IPSW) field empty to download the latest macOS from Apple. Give it **8 GB** of memory, **4** CPU cores and **80 GB** of disk, and name it exactly **`omamas-base`**. Save, then press play and let macOS install.
+2. When the installer finishes, shut the VM down. Then run:
+   ```bash
+   tests/rehearse.sh provision
+   ```
+   This asks for a password and boots the VM once, creating your user (`el-kal`, same as this Mac, so paths and Claude sessions line up), logging in automatically and turning on SSH. It skips Setup Assistant (needs macOS 27 on host and guest). At the desktop, shut down from the Apple menu: that's your clean base.
+
+**Every rehearsal:**
+```bash
+tests/rehearse.sh start   # a disposable copy: nothing it does is saved
+```
+- **In the VM:** open Terminal and run the printed one-liner. Click through the prompts the checklist describes.
+- **Afterwards:** run `./setup.sh` again and expect `0 changed`.
+- **When you're done:** `tests/rehearse.sh stop` throws the whole run away.
+
+**What's different from a real Mac:**
+- **No Touch ID:** sudo asks for the password, which tests that fallback.
+- **App Store:** sign in inside the VM if you want the `mas` apps to install.
+- **Prompts:** the first `utmctl` command asks to let your terminal control UTM; allow it.
 
 To test `install.sh` against a local branch without pushing:
 ```bash
