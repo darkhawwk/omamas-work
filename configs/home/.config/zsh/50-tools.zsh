@@ -6,6 +6,12 @@ command -v cot &> /dev/null && export VISUAL="cot -w"
 
 export BAT_THEME=ansi
 
+# 1Password's SSH agent for every tool. ssh and git already use it through
+# ~/.ssh/config, but ssh-add, git GUIs and editors only read SSH_AUTH_SOCK.
+_op_agent="$HOME/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+[[ -S $_op_agent ]] && export SSH_AUTH_SOCK=$_op_agent
+unset _op_agent
+
 # mise (runtime version manager)
 if command -v mise &> /dev/null; then
   eval "$(mise activate zsh --quiet)"
