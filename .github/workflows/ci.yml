@@ -3,6 +3,11 @@ name: ci
 on:
   push:
   pull_request:
+  # Weekly, even without commits: Homebrew renames and removes packages (tldr
+  # vanished one day), which only a fresh install notices.
+  schedule:
+    - cron: "0 8 * * 1" # Mondays 08:00 UTC
+  workflow_dispatch: # "Run workflow" button in the Actions tab
 
 jobs:
   test:

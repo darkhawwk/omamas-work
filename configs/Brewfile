@@ -93,8 +93,8 @@ brew "shfmt"
 brew "starship"
 # User interface to the TELNET protocol
 brew "telnet"
-# Simplified and community-driven man pages
-brew "tldr"
+# Official tldr client (simplified, community-driven man pages); provides `tldr`
+brew "tlrc"
 # Terminal multiplexer
 brew "tmux"
 # Extremely fast Python package installer and resolver, written in Rust

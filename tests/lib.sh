@@ -23,7 +23,7 @@ new_sandbox() {
 # Run an Omamas script inside the sandbox; captures OUT and RC.
 omamas() {
   OUT=$(env -u XDG_STATE_HOME -u OMAMAS_STATE_DIR -u OMAMAS_RUN_ID \
-    HOME="$FAKE_HOME" OMAMAS_CONFIG_DIR="$CFG" OMAMAS_COLOR=0 \
+    HOME="$FAKE_HOME" OMAMAS_CONFIG_DIR="$CFG" OMAMAS_COLOR=0 OMAMAS_SKIP_NETWORK_CHECK=1 \
     OMAMAS_FONT_DIR="$FAKE_HOME/Library/Fonts" ${EXTRA_ENV:-} \
     "$TEST_BASH" "$REPO/$1" "${@:2}" 2>&1)
   RC=$?

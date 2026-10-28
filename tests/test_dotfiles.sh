@@ -98,8 +98,18 @@ omamas $M
 chmod 755 "$FAKE_HOME/.config/tool"
 check "exits non-zero" rc_is 1
 check "names the folder and the fix" has_output "Can't write ~/.config/tool"
-check "gives the chown command" has_output "sudo chown -R $(id -un):staff ~/.config/tool"
+check "gives the chown command" has_output "sudo chown -R $(id -un):staff $FAKE_HOME/.config/tool"
+
 check "leaves the existing file in place" content_is "$FAKE_HOME/.config/tool/config" old
+
+echo "dotfiles: unwritable folder with a space in its path"
+new_sandbox
+mkdir -p "$CFG/home/Library/App Support/tool" "$FAKE_HOME/Library/App Support/tool"
+echo new >"$CFG/home/Library/App Support/tool/config"
+chmod 555 "$FAKE_HOME/Library/App Support/tool"
+omamas $M
+chmod 755 "$FAKE_HOME/Library/App Support/tool"
+check "quotes the path so the fix is paste-safe" has_output "$(printf '%q' "$FAKE_HOME/Library/App Support/tool")"
 
 echo "dotfiles: backup collisions within one run id"
 new_sandbox

@@ -98,7 +98,9 @@ preflight() {
 
   [[ -d $OMAMAS_CONFIG_DIR ]] || die "Config directory missing: $OMAMAS_CONFIG_DIR"
 
-  if curl -fsS --max-time 5 -o /dev/null https://github.com 2>/dev/null; then
+  if [[ ${OMAMAS_SKIP_NETWORK_CHECK:-0} == 1 ]]; then
+    log_info "Network check skipped"
+  elif curl -fsS --max-time 5 -o /dev/null https://github.com 2>/dev/null; then
     log_info "Network reachable"
   elif is_dry_run; then
     log_warn "Network unreachable (ignored in dry run)"

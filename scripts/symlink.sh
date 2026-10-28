@@ -58,7 +58,8 @@ link_file() {
   # Moving or creating DST needs write access to the folder holding it. Folders
   # left owned by root (an installer run with sudo) are the usual culprit.
   if [[ -d $(dirname "$dst") && ! -w $(dirname "$dst") ]]; then
-    log_error "Can't write $(tildify "$(dirname "$dst")") (owned by $(stat -f %Su "$(dirname "$dst")")). Fix: sudo chown -R $(id -un):staff $(tildify "$(dirname "$dst")")"
+    # %q quoting keeps the suggested command paste-safe ("Application Support").
+    log_error "Can't write $(tildify "$(dirname "$dst")") (owned by $(stat -f %Su "$(dirname "$dst")")). Fix: sudo chown -R $(id -un):staff $(printf '%q' "$(dirname "$dst")")"
     return 1
   fi
 
