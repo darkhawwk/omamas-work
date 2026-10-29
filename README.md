@@ -23,10 +23,11 @@ Nothing has to be installed first: `install.sh` brings the Xcode Command Line To
 - [ ] **Connected to the internet.**
 - [ ] **Touch ID fingerprint enrolled** (System Settings → Touch ID & Password), so `sudo` can use it after the first prompt. Without one, sudo falls back to your password.
 - [ ] **Signed into the App Store** with the Apple ID that owns your `mas` apps. Nothing can sign in for you. If you forget, those apps are skipped with a follow-up note; sign in, then run `./setup.sh --only packages`.
-- [ ] **Decide where the repo lives.** Dotfile symlinks point into the checkout, which defaults to `~/.local/share/omamas`. To mirror this Mac, set `OMAMAS_DIR`:
+- [ ] **Put the repo where it lives on this Mac.** Dotfile symlinks point into the checkout, and `repos.conf` also lists Omamas itself under `~/Work`. Bootstrap straight into that path, so there's one copy and the links point at the repo you'll commit from:
   ```bash
   curl -fsSL https://raw.githubusercontent.com/thebenwalther/omamas/main/install.sh | OMAMAS_DIR=~/Work/github.com/thebenwalther/omamas bash
   ```
+  Without `OMAMAS_DIR` it uses `~/.local/share/omamas`, and the repo cloner adds a second copy in `~/Work`.
 - [ ] **Same username as the old Mac** (`el-kal`) if you'll restore Claude sessions; they're filed by path.
 - [ ] **Plugged in**, if it's a laptop. `caffeinate` keeps it awake, but downloading every cask takes a while.
 
@@ -48,11 +49,36 @@ After that the run is unattended. The summary lists failed modules, follow-ups (
 - [ ] **Log out and back in** if the summary asks; some global preferences only apply then.
 - [ ] **Turn on 1Password's SSH agent** (Settings → Developer). `~/.ssh/config` already points at it, so git over SSH works from then on. If 1Password asks to approve an app's use of a key, approve it.
 - [ ] **Clone the private repos:** if the summary listed repos it couldn't clone yet (no SSH access during the first run), run `./setup.sh --only repos` now.
-- [ ] **Turn on 1Password's CLI integration** (Settings → Developer → "Integrate with 1Password CLI"), then `./setup.sh --only secrets` if the summary said secrets weren't rendered.
+- [ ] **Sign in to the GitHub CLI:** `gh auth login`. Choose **SSH** as the protocol, **skip** uploading a key (yours is already on GitHub), and log in with the browser.
+- [ ] **Secrets, if you've declared any:** turn on 1Password's CLI integration (Settings → Developer → "Integrate with 1Password CLI"), then `./setup.sh --only secrets`. See [Secrets](#secrets-and-signed-commits).
 - [ ] **Sign into apps** and enter licenses: Dropbox, Slack, Zoom, Notion and the rest.
 - [ ] **Grant privacy permissions** as apps ask: Accessibility, Screen Recording, Full Disk Access.
 - [ ] **Restore Claude:** quit Claude if it's open, wait for iCloud Drive to sync, then run `migrate/claude-restore.sh` and open Claude to sign in. Sessions resume because `45-repos` cloned your repos to their old paths.
 - [ ] **Confirm it converged:** `./setup.sh` again should report `0 changed` for every module.
+
+## Day to day: keeping the repo in sync
+
+The repo is the source of truth only for what you've **committed and pushed**: a new Mac gets what's on GitHub. Some changes land in the repo by themselves; the rest you add.
+
+| You change… | It reaches the repo… |
+|---|---|
+| A linked dotfile (`~/.zshrc`, `~/.gitconfig`, `~/.config/zsh/*`, Ghostty, starship, …) | **By itself.** The file *is* the repo file. Commit it. |
+| Global runtimes (`mise use -g node@26`) | **By itself.** It edits the linked `~/.config/mise/config.toml`. |
+| `brew install` / `brew uninstall` | **By hand:** edit `configs/Brewfile`. The drift check reminds you. |
+| A setting in System Settings or Finder | **By hand:** `configs/macos/defaults.conf`. The drift check only notices settings that are already listed there. |
+| The Dock, default apps, login items | **By hand:** the matching file in `configs/macos/`. |
+| A **new** config file, e.g. `~/.config/newtool/config` | **By hand:** move it into `configs/home/.config/newtool/`, then `./setup.sh --only dotfiles` links it back. |
+| A new repo under `~/Work` | **By hand:** add it to `configs/repos.conf`. |
+| In-app data (browser profiles, Obsidian vault settings) | **Never.** Use the app's own sync. |
+
+**A new zsh tool:** `brew install` it, add it to the Brewfile, and if it hooks into the shell, add a guarded block to `configs/home/.config/zsh/50-tools.zsh` (aliases go in `40-aliases.zsh`). Installers that append to `~/.zshrc` edit the repo file through the link, so move those lines into `50-tools.zsh`.
+
+**Editing through a link** works in any normal editor. `sed -i` and some apps replace the link with a plain file instead; the next `./setup.sh --only dotfiles` backs that file up and restores the link, and you copy your change into the repo version.
+
+**Routine:**
+- **Right away:** commit dotfile edits; add what you `brew install` and want to keep.
+- **When the Monday [drift check](#weekly-drift-check) notifies you:** adopt the change into `configs/`, or undo it.
+- **After big changes, and before setting up another Mac:** run [`./capture.sh`](#capturing-an-existing-mac), adopt what you want, confirm `./setup.sh --dry-run` reports 0 pending, then commit and push. Check `git status` too, for linked edits capture doesn't list.
 
 ## Layout
 
@@ -67,13 +93,13 @@ omamas/
 ├── configs/                   State · what should exist. No logic.
 │   ├── Brewfile                 formulae, casks, taps, mas apps
 │   ├── claude-backup.conf       where Claude backups go; which folder to check for repos
-│   ├── drift-check.conf         when the weekly drift check runs
 │   ├── directories.conf         directories + modes
-│   ├── home/                    mirror of $HOME; every file is symlinked into place
+│   ├── drift-check.conf         when the weekly drift check runs
 │   ├── fonts/                   .ttf/.otf/.ttc copied to ~/Library/Fonts
-│   ├── macos/computer-name.conf this Mac's name
+│   ├── home/                    mirror of $HOME; every file is symlinked into place
 │   ├── repos.conf               git repos to clone under ~/Work
 │   ├── secrets/                 templates with op:// references, rendered into $HOME
+│   ├── macos/computer-name.conf this Mac's name
 │   ├── macos/defaults.conf      `defaults` preferences
 │   ├── macos/dock.conf          Dock apps, in order
 │   ├── macos/default-apps.conf  which app opens which links and documents
@@ -103,8 +129,9 @@ omamas/
 │   ├── 70-drift-check.sh        ┘
 │   └── drift-check.sh           weekly "still in sync?" report (run by the LaunchAgent)
 ├── assets/logo.png            Project logo
-├── tests/                     Sandboxed tests (fake $HOME; never touch the real machine)
-└── .github/workflows/ci.yml   Lint + tests, then a real bootstrap on an ephemeral macOS VM
+├── drafts/                    capture.sh output (git-ignored)
+├── tests/                     Sandboxed tests (fake $HOME; never touch the real machine), rehearse.sh for UTM
+└── .github/                   CI (lint, tests, then a real bootstrap on a fresh macOS VM) and Dependabot
 ```
 
 **Tier rules**
@@ -127,7 +154,7 @@ The whole script sits inside `main`, which is called on the last line, so a trun
 1. Takes a lock (`~/.local/state/omamas/setup.lock`) so two runs can't overlap.
 2. Mirrors all output to `~/.local/state/omamas/logs/setup-<run-id>.log` with ANSI colors stripped. `latest.log` always points at the newest log.
 3. Pre-flight: macOS ≥ `OMAMAS_MIN_MACOS` (default 14.0), not root, configs present, network reachable, disk space.
-4. Runs `sudo -v` once, but only if a selected module carries `# omamas: requires-sudo`. A background keep-alive then holds the sudo ticket until the last such module (`20-packages`) finishes, then drops it with `sudo -k`. `caffeinate` keeps the Mac awake. On a fresh Mac this is the only password prompt: `05-sudo-touchid` runs first and switches sudo to Touch ID (see below).
+4. Runs `sudo -v` once, but only if a selected module carries `# omamas: requires-sudo`. A background keep-alive then holds the sudo ticket until the last such module (`20-packages`) finishes, then drops it with `sudo -k`. `caffeinate` keeps the Mac awake. `05-sudo-touchid` runs early and switches sudo to Touch ID (see below), so later prompts, such as a cask installer's, take a fingerprint.
 5. Runs each module and records ok / FAILED and how long it took. A failing module doesn't stop the run unless you pass `--fail-fast`.
 6. Prints a summary, any follow-up notes (e.g. "log out to apply"), the log path and the backup path. The exit status is non-zero if any module failed.
 
@@ -140,7 +167,7 @@ The whole script sits inside `main`, which is called on the last line, so a trun
 | Principle | Mechanism |
 |---|---|
 | **Idempotency** | Every item is checked before anything is done to it: it's either already right (`[SKIP]`) or gets changed (`[SUCCESS]`). Each module ends with `name: N changed, M unchanged`; CI fails if a second run reports anything changed. |
-| **Non-destructive** | Before a file is replaced, `backup_path` moves it to `~/.local/state/omamas/backups/<run-id>/<path relative to $HOME>`. A collision gets `.1`, `.2`, …, so a backup is never overwritten. Nothing is ever `rm`'d except symlinks that Omamas itself created. |
+| **Non-destructive** | Before a file is replaced, `backup_path` moves it to `~/.local/state/omamas/backups/<run-id>/<path relative to $HOME>`. A collision gets `.1`, `.2`, …, so a backup is never overwritten. Nothing of yours is deleted: the only removals are symlinks Omamas created, its own temp files, and a clone that failed halfway. |
 | **Declarative removal** | `40-dotfiles` records the links it owns in `links.tsv`. On the next run, a link whose source was deleted from `configs/home/` is removed, but only if it still points at exactly that source. `20-packages` never uninstalls anything; it only reports packages that are installed but not declared (**drift**). |
 | **Dry run** | `--dry-run` (or `-n` on any module) sends every change through `run` / `log_dry` and changes nothing. |
 | **Fail-safe** | `set -Eeuo pipefail`. The ERR trap reports the failing command with its file and line, EXIT hooks clean up (keep-alive, lock, temp files), and Ctrl-C exits 130. |
@@ -167,14 +194,18 @@ cp -a ~/.local/state/omamas/backups/<run-id>/. ~/
 | `configs/macos/default-apps.conf` | `<bundle-id> <url-scheme>` or `<bundle-id> <type-id> <role>` | `64-default-apps` |
 | `configs/macos/login-items.conf` | `<app path> [hidden]` | `66-login-items` |
 | `configs/macos/security.conf` | `firewall on\|off`, `stealth on\|off`, `filevault check` | `17-security` |
+| `configs/macos/computer-name.conf` | the name, e.g. `Bizarro` | `02-computer-name` |
+| `configs/secrets/**` | templates with `op://` references, rendered to the same path under `~` | `48-secrets` |
+| `configs/drift-check.conf` | `weekday`, `hour`, `minute`, `skip <module>` | `70-drift-check` |
+| `configs/claude-backup.conf` | `destination <dir>`, `scan <dir>` | `migrate/` |
 
-In the `.conf` files, lines starting with `#` and blank lines are ignored, and a leading `~` expands to `$HOME`. Every manifest ships with its examples commented out, so a fresh clone changes nothing until you declare something.
+In the `.conf` files, lines starting with `#` and blank lines are ignored, and a leading `~` expands to `$HOME`. Delete a manifest to turn its module off: a missing manifest is a skip, not an error.
 
 Dotfiles are linked **file by file**, never as whole directories. That lets apps write their own state next to your managed files, and it keeps app-generated files out of the repo. Because symlinks point into the clone, keep the clone in a stable location.
 
 ## Capturing an existing Mac
 
-`./capture.sh` gives you a first draft of `configs/` from the Mac you're on. It's read-only: it never touches `configs/`, your dotfiles or any preference, and it runs Homebrew with auto-update off. Everything it produces goes to `drafts/<run-id>/`, which is git-ignored:
+`./capture.sh` drafts `configs/` from the Mac you're on: the first time, and whenever you've changed a lot without updating the repo (see [Day to day](#day-to-day-keeping-the-repo-in-sync)). It's read-only: it never touches `configs/`, your dotfiles or any preference, and it runs Homebrew with auto-update off. Everything it produces goes to `drafts/<run-id>/`, which is git-ignored:
 
 | Draft | Source | What it gives you |
 |---|---|---|
@@ -219,7 +250,7 @@ export ANTHROPIC_API_KEY="op://Personal/Anthropic API/credential"
 **Signed commits:** `.gitconfig` signs every commit and tag with your 1Password "SSH Key" through `op-ssh-sign`.
 - **Touch ID:** 1Password asks for it when signing; approve it for the terminal app once to stop the prompts.
 - **Local verification:** `~/.config/git/allowed_signers` lets `git log --show-signature` verify your signatures.
-- **One step on GitHub:** add the same public key as a **Signing key** (Settings → SSH and GPG keys → New SSH key → Key type: *Signing Key*). Until then GitHub shows your commits as *Unverified*. With the CLI instead:
+- **Once per GitHub account (done for yours):** add the same public key as a **Signing key** (Settings → SSH and GPG keys → New SSH key → Key type: *Signing Key*). Until then GitHub shows your commits as *Unverified*. With the CLI instead:
   ```bash
   gh auth refresh -s admin:ssh_signing_key
   ssh-add -L | grep ' SSH Key$' > /tmp/signing.pub && gh ssh-key add /tmp/signing.pub --type signing --title "1Password SSH Key"
@@ -321,9 +352,9 @@ While the old and new Mac are both on the same network with the same name, macOS
 ## Adding a module
 
 ```bash
-cp scripts/_template.sh scripts/70-runtimes.sh   # the number decides the order
-$EDITOR scripts/70-runtimes.sh configs/runtimes.conf
-scripts/70-runtimes.sh --dry-run
+cp scripts/_template.sh scripts/55-example.sh   # the number decides the order
+$EDITOR scripts/55-example.sh configs/example.conf
+scripts/55-example.sh --dry-run
 ```
 
 The module contract, which `_template.sh` spells out:
@@ -332,7 +363,7 @@ The module contract, which `_template.sh` spells out:
 3. **Data comes from `configs/`.** Read manifests with `read_manifest`.
 4. **Mutations go through `run`,** or an explicit `is_dry_run` branch.
 5. **Per-item failures** go to `log_error` and the loop continues. `module_finish` turns any errors into a non-zero exit at the end.
-6. If the module may need admin rights, add a `# omamas: requires-sudo` line.
+6. If the module may need admin rights, add a `# omamas: requires-sudo` line, and number it before `20-packages`: `setup.sh` drops sudo after the last such module, and a test fails if a later one appears.
 
 Only files named `NN-*.sh` are modules. Everything else in `scripts/` is a library or the template.
 
@@ -404,7 +435,7 @@ cat install.sh | OMAMAS_REPO="file://$PWD" OMAMAS_REF=$(git branch --show-curren
 
 ## Security
 
-- **What runs on a new Mac is protected.** The one-liner installs `main` and runs it with `sudo`, so a ruleset on `main` blocks force-pushes and deletion and requires **signed commits**. Yours are signed with your 1Password key.
+- **What runs on a new Mac is protected.** The one-liner installs whatever is on `main` and gives it your admin rights, so a ruleset on `main` blocks force-pushes and deletion and requires **signed commits**. Yours are signed with your 1Password key.
 - **No secrets in the repo.** Secret values never enter git: `configs/secrets/` holds 1Password references, and Claude backups are encrypted images outside the repo. GitHub secret scanning and push protection are on.
 - **CI can't write.** The workflow pins its token to read-only, even though the e2e job runs third-party installers, and checkout leaves no git credentials on disk. Actions are pinned to commit hashes, and Dependabot proposes updates.
 - **sudo only as long as it's needed.** `setup.sh` asks once, up front, and keeps the ticket fresh only until `20-packages`, the last module that needs it. Then it drops the ticket (`sudo -k`), so repo clones, runtime downloads, secrets and everything after can't use `sudo` without asking.
@@ -425,9 +456,11 @@ cat install.sh | OMAMAS_REPO="file://$PWD" OMAMAS_REF=$(git branch --show-curren
 | `OMAMAS_UPGRADE=1` | Also `brew update` and upgrade outdated packages (same as `--upgrade`) |
 | `OMAMAS_CAPTURE_DOMAINS` | Preference domains `capture.sh` inspects (default: a curated list of macOS domains) |
 | `OMAMAS_BACKUP_PASSWORD` | Password for `migrate/` images without a prompt (automation and tests; prefer the prompt) |
-| `OMAMAS_PAM_DIR` | Use a different PAM directory than `/etc/pam.d` (used by the tests) |
 | `OMAMAS_NO_RESTART=1` | Don't quit or restart Dock, Finder or System Settings; add a follow-up note instead |
 | `OMAMAS_MIN_MACOS` | Minimum macOS version allowed by pre-flight (default `14.0`) |
+| `OMAMAS_SKIP_NETWORK_CHECK=1` | Skip pre-flight's network check |
+| `OMAMAS_PROMPT_TIMEOUT` | Seconds to wait on a permission or approval prompt before leaving a follow-up (defaults per module: 20 to 300) |
+| `OMAMAS_STATE_DIR` | Where logs, backups and link state live (default `~/.local/state/omamas`) |
 | `OMAMAS_DRY_RUN=1` | Same as `--dry-run` |
-| `NO_COLOR` | Plain output |
+| `NO_COLOR` / `OMAMAS_COLOR=0\|1` | Plain output, or force color on or off |
 | `OMAMAS_TEST_MODE=1` | Lets the test suite point modules at fake tools; ignored otherwise |
