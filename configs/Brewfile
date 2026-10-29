@@ -163,6 +163,8 @@ cask "slack"
 cask "sloth"
 # Mesh VPN based on WireGuard
 cask "tailscale-app"
+# Virtual machines UI using QEMU
+cask "utm"
 # Anti-malware scan logging tool
 cask "xprocheck"
 # Multiplayer code editor
