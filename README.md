@@ -49,7 +49,7 @@ After that the run is unattended. The summary lists failed modules, follow-ups (
 - [ ] **Log out and back in** if the summary asks; some global preferences only apply then.
 - [ ] **Turn on 1Password's SSH agent** (Settings → Developer). `~/.ssh/config` already points at it, so git over SSH works from then on. If 1Password asks to approve an app's use of a key, approve it.
 - [ ] **Clone the private repos:** if the summary listed repos it couldn't clone yet (no SSH access during the first run), run `./setup.sh --only repos` now.
-- [ ] **Sign in to the GitHub CLI:** `gh auth login`. Choose **SSH** as the protocol, **skip** uploading a key (yours is already on GitHub), and log in with the browser.
+- [ ] **Sign in to the GitHub CLI:** `gh auth login`, with SSH as the protocol. Skip uploading a key: the 1Password one is already on GitHub.
 - [ ] **Secrets, if you've declared any:** turn on 1Password's CLI integration (Settings → Developer → "Integrate with 1Password CLI"), then `./setup.sh --only secrets`. See [Secrets](#secrets-and-signed-commits).
 - [ ] **Sign into apps** and enter licenses: Dropbox, Slack, Zoom, Notion and the rest.
 - [ ] **Grant privacy permissions** as apps ask: Accessibility, Screen Recording, Full Disk Access.
@@ -71,14 +71,7 @@ The repo is the source of truth only for what you've **committed and pushed**: a
 | A new repo under `~/Work` | **By hand:** add it to `configs/repos.conf`. |
 | In-app data (browser profiles, Obsidian vault settings) | **Never.** Use the app's own sync. |
 
-**A new zsh tool:** `brew install` it, add it to the Brewfile, and if it hooks into the shell, add a guarded block to `configs/home/.config/zsh/50-tools.zsh` (aliases go in `40-aliases.zsh`). Installers that append to `~/.zshrc` edit the repo file through the link, so move those lines into `50-tools.zsh`.
-
-**Editing through a link** works in any normal editor. `sed -i` and some apps replace the link with a plain file instead; the next `./setup.sh --only dotfiles` backs that file up and restores the link, and you copy your change into the repo version.
-
-**Routine:**
-- **Right away:** commit dotfile edits; add what you `brew install` and want to keep.
-- **When the Monday [drift check](#weekly-drift-check) notifies you:** adopt the change into `configs/`, or undo it.
-- **After big changes, and before setting up another Mac:** run [`./capture.sh`](#capturing-an-existing-mac), adopt what you want, confirm `./setup.sh --dry-run` reports 0 pending, then commit and push. Check `git status` too, for linked edits capture doesn't list.
+The [drift check](#weekly-drift-check) catches most of the by-hand rows each week. After a lot of changes, and before setting up another Mac, run [`./capture.sh`](#capturing-an-existing-mac), adopt what you want to keep, and commit until `./setup.sh --dry-run` reports nothing pending and `git status` is clean.
 
 ## Layout
 
@@ -201,7 +194,20 @@ cp -a ~/.local/state/omamas/backups/<run-id>/. ~/
 
 In the `.conf` files, lines starting with `#` and blank lines are ignored, and a leading `~` expands to `$HOME`. Delete a manifest to turn its module off: a missing manifest is a skip, not an error.
 
-Dotfiles are linked **file by file**, never as whole directories. That lets apps write their own state next to your managed files, and it keeps app-generated files out of the repo. Because symlinks point into the clone, keep the clone in a stable location.
+Dotfiles are linked **file by file**, never as whole directories. That lets apps write their own state next to your managed files, and it keeps app-generated files out of the repo. Because symlinks point into the clone, keep the clone in a stable location. Editors write through a link; a tool that replaces the file instead (`sed -i`, some apps) breaks it, and the next run backs the plain file up and restores the link.
+
+**zsh** is split into numbered fragments in `~/.config/zsh/`, which `~/.zshrc` sources in name order, then `~/.zshrc.local` (rendered secrets, never committed):
+
+| Fragment | Holds |
+|---|---|
+| `10-path.zsh` | PATH additions |
+| `20-history.zsh` | history, kept in `~/.local/state/zsh` |
+| `30-completion.zsh` | `compinit`, once |
+| `40-aliases.zsh` | aliases |
+| `50-tools.zsh` | tool setup (`mise`, `zoxide`, `fzf`, `starship`, …), each guarded by `command -v` so a missing tool never breaks the shell |
+| `90-plugins.zsh` | Homebrew-installed plugins; syntax highlighting loads last |
+
+Add a feature with a new numbered file. If an installer appends lines to `~/.zshrc`, it has edited the repo file through the link: move them into a fragment.
 
 ## Capturing an existing Mac
 
@@ -250,18 +256,13 @@ export ANTHROPIC_API_KEY="op://Personal/Anthropic API/credential"
 **Signed commits:** `.gitconfig` signs every commit and tag with your 1Password "SSH Key" through `op-ssh-sign`.
 - **Touch ID:** 1Password asks for it when signing; approve it for the terminal app once to stop the prompts.
 - **Local verification:** `~/.config/git/allowed_signers` lets `git log --show-signature` verify your signatures.
-- **Once per GitHub account (done for yours):** add the same public key as a **Signing key** (Settings → SSH and GPG keys → New SSH key → Key type: *Signing Key*). Until then GitHub shows your commits as *Unverified*. With the CLI instead:
-  ```bash
-  gh auth refresh -s admin:ssh_signing_key
-  ssh-add -L | grep ' SSH Key$' > /tmp/signing.pub && gh ssh-key add /tmp/signing.pub --type signing --title "1Password SSH Key"
-  ```
+- **On GitHub:** the same public key is registered as a **Signing key** (Settings → SSH and GPG keys), which is what makes commits show as *Verified* and lets the `main` ruleset accept them.
 
 ## Language runtimes
 
 Your mise config (`configs/home/.config/mise/config.toml`) is linked like any dotfile, and `47-runtimes.sh` installs every tool in its `[tools]` table that has no version installed yet, with `mise install`.
 
 - **Versions follow the config.** Yours asks for `latest` and `lts`, so a new Mac gets the newest releases on the day it's set up, not the exact versions on this Mac. To reproduce exact versions instead, pin them (`node = "24.22.1"`). On a Mac that already has a tool, nothing changes; move to newer releases with `mise upgrade`.
-- **Missing is decided locally:** tools named in the config versus `mise ls --installed`. mise's own remote lookups silently drop tools whose "latest" can't be resolved (slow network, offline), which would hide real gaps.
 - **Project tools aren't installed here.** `mise install` runs from `$HOME`, so only the global config counts. Repos with their own `mise.toml` install their tools when you first `cd` into them and trust the file.
 
 ## Apps installed outside Homebrew
@@ -435,17 +436,17 @@ cat install.sh | OMAMAS_REPO="file://$PWD" OMAMAS_REF=$(git branch --show-curren
 
 ## Security
 
-- **What runs on a new Mac is protected.** The one-liner installs whatever is on `main` and gives it your admin rights, so a ruleset on `main` blocks force-pushes and deletion and requires **signed commits**. Yours are signed with your 1Password key.
-- **No secrets in the repo.** Secret values never enter git: `configs/secrets/` holds 1Password references, and Claude backups are encrypted images outside the repo. GitHub secret scanning and push protection are on.
-- **CI can't write.** The workflow pins its token to read-only, even though the e2e job runs third-party installers, and checkout leaves no git credentials on disk. Actions are pinned to commit hashes, and Dependabot proposes updates.
-- **sudo only as long as it's needed.** `setup.sh` asks once, up front, and keeps the ticket fresh only until `20-packages`, the last module that needs it. Then it drops the ticket (`sudo -k`), so repo clones, runtime downloads, secrets and everything after can't use `sudo` without asking.
-- **No check-then-swap gaps.** What root installs (the Touch ID PAM file, the Homebrew installer) stays in memory between being checked and being used, never in a temp file another process could replace. The `/tmp` marker for the Command Line Tools is created with `O_EXCL|O_NOFOLLOW`, which refuses a planted symlink.
-- **Config values can't become code.** Values reach AppleScript as arguments, never as script text; `repos.conf` lines must be exactly `host/owner/repo`; `directories.conf` paths must stay under `~`, with octal modes and no symlink anywhere along the way; `defaults.conf` takes preference domains, never file paths; secrets in shell files are single-quoted.
-- **Some config *is* code.** The Brewfile is Ruby, `configs/home/` dotfiles are shell, and `.config/mise/config.toml` can carry `[hooks]` that run on `mise install` and in every shell. Review changes to those like changes to a script.
-- **SSH host keys are pinned.** GitHub's published host keys are linked to `~/.ssh/github_known_hosts`, and `~/.ssh/config` trusts them for github.com, so neither `45-repos` nor everyday `git`/`ssh` accepts whatever answers first on a fresh Mac. Other hosts must already be in `~/.ssh/known_hosts`.
-- **Logs and backups are private.** `~/.local/state/omamas` is kept at mode 700, and a repo URL is logged without any username or token in it.
-- **Backups need a long password.** New Claude backups require 12+ characters, because the image sits in iCloud, where a short password can be guessed offline. `OMAMAS_BACKUP_PASSWORD` is read and removed from the environment as soon as the script starts.
-- **Test hooks are off in real runs.** Overrides that choose which program runs, or what root writes to (`OMAMAS_SOCKETFILTERFW`, `OMAMAS_PAM_DIR`, …), only apply with `OMAMAS_TEST_MODE=1`, which the test suite sets.
+- **`main` is what a new Mac runs**, with your admin rights, so a ruleset protects it: no force-pushes or deletion, and every commit must be signed. GitHub secret scanning and push protection are on.
+- **No secret values in git.** `configs/secrets/` holds 1Password references; Claude backups are AES-256 images (12+ character password) outside the repo.
+- **Least privilege.** sudo is held only until `20-packages`, the last module that needs it, then dropped. CI's token is read-only, checkout keeps no credentials, and actions are pinned to commit hashes, updated by Dependabot.
+- **Config values are data.** They reach AppleScript as arguments and shell files single-quoted; repo names, directory paths and modes, and preference domains are validated, and a directory is never changed through a symlink. What root writes is checked and written from memory, never from a temp file another process could swap.
+- **No trust on first use.** GitHub's SSH host keys are pinned (`configs/home/.ssh/github_known_hosts`) for both repo clones and everyday `git`.
+- **Private by default.** Logs and backups live in a mode-700 folder, and URLs are logged without credentials. Test-only overrides work only under `OMAMAS_TEST_MODE=1`.
+
+**Accepted trade-offs**, inherent to this kind of tool:
+- `curl | bash` trusts whatever `main` holds: the ruleset is the protection, not a signature check in `install.sh`.
+- The Homebrew installer comes from its `HEAD`, as Homebrew documents.
+- Some config *is* code, and runs during the sudo window or at shell start: the Brewfile (Ruby), `configs/home/` dotfiles (shell), and mise's config (`[hooks]`). Review changes to them like changes to a script.
 
 ## Environment variables
 
@@ -455,7 +456,7 @@ cat install.sh | OMAMAS_REPO="file://$PWD" OMAMAS_REF=$(git branch --show-curren
 | `OMAMAS_CONFIG_DIR` | Use a different State tier (handy for sandboxes and per-machine profiles) |
 | `OMAMAS_UPGRADE=1` | Also `brew update` and upgrade outdated packages (same as `--upgrade`) |
 | `OMAMAS_CAPTURE_DOMAINS` | Preference domains `capture.sh` inspects (default: a curated list of macOS domains) |
-| `OMAMAS_BACKUP_PASSWORD` | Password for `migrate/` images without a prompt (automation and tests; prefer the prompt) |
+| `OMAMAS_BACKUP_PASSWORD` | Password for `migrate/` images without a prompt (automation and tests; prefer the prompt). Removed from the environment as soon as it's read |
 | `OMAMAS_NO_RESTART=1` | Don't quit or restart Dock, Finder or System Settings; add a follow-up note instead |
 | `OMAMAS_MIN_MACOS` | Minimum macOS version allowed by pre-flight (default `14.0`) |
 | `OMAMAS_SKIP_NETWORK_CHECK=1` | Skip pre-flight's network check |
