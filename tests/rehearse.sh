@@ -24,8 +24,8 @@ USER_NAME="${OMAMAS_VM_USER:-$(id -un)}"
 FULL_NAME="${OMAMAS_VM_FULL_NAME:-$(id -F 2>/dev/null || id -un)}"
 UTMCTL="${OMAMAS_UTMCTL:-/Applications/UTM.app/Contents/MacOS/utmctl}" # overridable for tests
 # shellcheck disable=SC2088 # printed for the VM's shell to expand, not this one
-REPO_DIR="~/Work/github.com/thebenwalther/omamas"
-ONE_LINER="curl -fsSL https://raw.githubusercontent.com/thebenwalther/omamas/main/install.sh | OMAMAS_DIR=$REPO_DIR bash"
+REPO_DIR="~/Work/github.com/darkhawwk/omamas-work"
+ONE_LINER="curl -fsSL https://raw.githubusercontent.com/darkhawwk/omamas-work/main/install.sh | OMAMAS_DIR=$REPO_DIR bash"
 
 usage() { sed -n '2,/^$/{s/^# \{0,1\}//p;}' "$0"; }
 

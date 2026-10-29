@@ -1,4 +1,4 @@
-# Brewfile draft captured from Bizarro on 2026-10-27.
+# Brewfile draft captured from Null Space on 2026-10-29.
 # Everything installed on request. Delete what you don't want on a new Mac.
 
 # ARP scanning and fingerprinting tool
@@ -13,11 +13,11 @@ brew "bat"
 brew "btop"
 # GNU File, Shell, and Text utilities
 brew "coreutils"
-# Tool for managing dock items (used by 62-dock.sh)
+# Tool for managing dock items
 brew "dockutil"
 # More intuitive version of du in rust
 brew "dust"
-# Select default apps for documents and URL schemes on macOS (used by 64-default-apps.sh)
+# Select default apps for documents and URL schemes on macOS
 brew "duti"
 # Perl lib for reading and writing EXIF metadata
 brew "exiftool"
@@ -75,24 +75,20 @@ brew "tree-sitter"
 brew "neovim"
 # Port scanning utility for large networks
 brew "nmap"
-# Create, run, and share large language models (LLMs)
-brew "ollama", restart_service: :changed
 # Swiss-army knife of markup format conversion
 brew "pandoc"
 # Search tool like grep and The Silver Searcher
 brew "ripgrep"
 # Rust toolchain installer
 brew "rustup"
-# Static analysis and lint tool, for (ba)sh scripts
-brew "shellcheck"
 # Autoformat shell script source code
 brew "shfmt"
 # Cross-shell prompt for astronauts
 brew "starship"
 # User interface to the TELNET protocol
 brew "telnet"
-# Official tldr client (simplified, community-driven man pages); provides `tldr`
-brew "tlrc"
+# Simplified and community-driven man pages
+brew "tldr"
 # Terminal multiplexer
 brew "tmux"
 # Extremely fast Python package installer and resolver, written in Rust
@@ -113,32 +109,18 @@ brew "zmap"
 brew "zoxide"
 # UNIX shell (command interpreter)
 brew "zsh"
-# Fish-like fast/unobtrusive autosuggestions for zsh
-brew "zsh-autosuggestions"
-# Feature-rich syntax highlighting for Zsh
-brew "zsh-fast-syntax-highlighting"
-# Password manager; holds the SSH keys (installed early by 15-1password.sh)
-cask "1password"
-# Command-line helper for the 1Password desktop app (used by 48-secrets.sh)
-cask "1password-cli"
-# Desktop password and login vault
-cask "bitwarden"
+# Tool to flash OS images to SD cards & USB drives
+cask "balenaetcher"
 # Monitors common persistence locations
 cask "blockblock"
 # Web browser focusing on privacy
 cask "brave-browser"
-# Design tool
-cask "canva"
-# Anthropic's official Claude AI desktop app
-cask "claude"
 # Terminal-based AI coding assistant
 cask "claude-code"
-# Free app that makes your Internet safer
-cask "cloudflare-warp"
+# OpenAI's coding agent that runs in your terminal
+cask "codex"
 # Plain-text editor for web pages, program source codes and more
 cask "coteditor"
-# Voice and text chat software
-cask "discord"
 # Client for the Dropbox cloud storage service
 cask "dropbox"
 cask "font-awesome-terminal-fonts"
@@ -149,8 +131,6 @@ cask "font-noto-emoji"
 cask "ghostty"
 # Utility to hide menu bar items
 cask "hiddenbar"
-# Menu bar calendar
-cask "itsycal"
 # Tool to show what is persistently installed on the computer
 cask "knockknock"
 # Open-source cross-platform alternative to AirDrop
@@ -159,8 +139,6 @@ cask "localsend"
 cask "logi-options+"
 # Open-source firewall to block unknown outgoing connections
 cask "lulu"
-# Multi-platform web browser
-cask "microsoft-edge"
 # Tool to control external monitor brightness & volume
 cask "monitorcontrol"
 # Smooths scrolling and set mouse scroll directions independently
@@ -169,12 +147,10 @@ cask "mos"
 cask "neo-network-utility"
 # Network monitor
 cask "netiquette"
-# App to write, plan, collaborate, and get organised
-cask "notion"
-# Knowledge base that works on top of a local folder of plain text Markdown files
-cask "obsidian"
-# Utility to uninstall apps and remove leftover files from old/uninstalled apps
-cask "pearcleaner"
+# Collaboration platform for API development
+cask "postman"
+# Protect your personal files
+cask "ransomwhere"
 # Move and resize windows using keyboard shortcuts or snap areas
 cask "rectangle"
 # Screenshot measurement and annotation tool
@@ -187,12 +163,14 @@ cask "slack"
 cask "sloth"
 # Mesh VPN based on WireGuard
 cask "tailscale-app"
-# Virtual machines UI using QEMU
-cask "utm"
+# Anti-malware scan logging tool
+cask "xprocheck"
 # Multiplayer code editor
 cask "zed"
 # Video communication and virtual meeting platform
 cask "zoom"
-mas "Adblock Plus", id: 1432731683
+mas "Apple Configurator", id: 1037126344
 mas "Bear", id: 1091189122
-mas "Pixelmator Pro", id: 1289583905
+mas "Bluebook", id: 1645016851
+mas "ClassLink OneClick Extension", id: 1436703417
+mas "Jump Desktop", id: 524141863

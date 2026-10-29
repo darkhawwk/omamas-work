@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # install.sh — Omamas remote bootstrap.
 #
-#   curl -fsSL https://raw.githubusercontent.com/thebenwalther/omamas/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/darkhawwk/omamas-work/main/install.sh | bash
 #   curl -fsSL .../install.sh | bash -s -- --dry-run      # pass flags to setup.sh
 #
 # Ensures the Xcode Command Line Tools (for git), clones or fast-forwards the
@@ -9,18 +9,18 @@
 # before the repo (and therefore utils.sh) exists on disk.
 #
 # Environment overrides:
-#   OMAMAS_REPO   git URL   (default: https://github.com/thebenwalther/omamas.git)
+#   OMAMAS_REPO   git URL   (default: https://github.com/darkhawwk/omamas-work.git)
 #   OMAMAS_REF    branch    (default: main)
-#   OMAMAS_DIR    checkout  (default: ~/.local/share/omamas)
+#   OMAMAS_DIR    checkout  (default: ~/Work/github.com/darkhawwk/omamas-work)
 
 # Everything lives in functions and main runs on the last line, so a download
 # cut short by the network can never execute a partial script.
 
 set -euo pipefail
 
-OMAMAS_REPO="${OMAMAS_REPO:-https://github.com/thebenwalther/omamas.git}"
+OMAMAS_REPO="${OMAMAS_REPO:-https://github.com/darkhawwk/omamas-work.git}"
 OMAMAS_REF="${OMAMAS_REF:-main}"
-OMAMAS_DIR="${OMAMAS_DIR:-$HOME/.local/share/omamas}"
+OMAMAS_DIR="${OMAMAS_DIR:-$HOME/Work/github.com/darkhawwk/omamas-work}"
 
 say() { printf '\033[1;34m[omamas]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[omamas]\033[0m %s\n' "$*" >&2; }
