@@ -32,6 +32,7 @@ Omamas is "workstation as code" for macOS, written in plain Bash that runs on th
 - [Security](#security)
 - [Development](#development)
 - [Environment variables](#environment-variables)
+- [License](#license)
 
 ## Make it yours
 
@@ -416,3 +417,7 @@ cat install.sh | OMAMAS_REPO="file://$PWD" OMAMAS_REF=$(git branch --show-curren
 | `OMAMAS_BACKUP_PASSWORD` | Password for `migrate/` images without a prompt (automation and tests); removed from the environment once read |
 | `NO_COLOR` / `OMAMAS_COLOR=0\|1` | Plain output, or force color on or off |
 | `OMAMAS_TEST_MODE=1` | Lets the test suite point modules at fake tools; ignored otherwise |
+
+## License
+
+[MIT](LICENSE). The configs in this repo are one person's setup, shared as an example: replace them with your own.
